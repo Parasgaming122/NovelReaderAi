@@ -1,0 +1,17 @@
+language: "mtl"
+name: "Machine Translation"
+sources:
+  - id: "sonicmtl"
+    name: "SonicMTL"
+    version: "1.7.1"
+    url: "https://raw.githubusercontent.com/Parasgaming122/external-sources/refs/heads/main/mtl/sonicmtl.lua"
+    icon: "https://github.com/Parasgaming122/external-sources/main/icons/sonicmtl.png"
+    language: "mtl"
+
+  - id: "wtrlab"
+    name: "WTR-LAB"
+    version: "1.1.4"
+    url: "https://raw.githubusercontent.com/Parasgaming122/external-sources/refs/heads/main/mtl/wtrlab.lua"
+    icon: "https://wtr-lab.com/favicon.ico"
+    language: "mtl"
+

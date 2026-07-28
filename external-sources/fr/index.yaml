@@ -1,0 +1,10 @@
+language: "fr"
+name: "French"
+sources:
+  - id: "novelfrance"
+    name: "NovelFrance"
+    version: "1.0.9"
+    url: "https://raw.githubusercontent.com/Parasgaming122/external-sources/refs/heads/main/fr/novelfrance.lua"
+    icon: "https://github.com/Parasgaming122/external-sources/main/icons/novelfrance.png"
+    language: "fr"
+

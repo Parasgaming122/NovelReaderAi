@@ -1,0 +1,286 @@
+# CI Workflow - Validate & Test All Sources
+# ===========================================
+# Runs on every push/PR to ensure sources are valid
+# - Syntax checks Lua files
+# - Validates metadata (id, name, version, baseUrl)
+# - Tests bypasser module loading
+# - Checks for common errors
+
+name: CI - Source Validation
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/*.lua'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.lua'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Validate Lua syntax
+  validate-syntax:
+    name: 🔍 Validate Lua Syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+
+      - name: Check syntax of all Lua files
+        run: |
+          echo "🔍 Checking Lua syntax for all source files..."
+          ERROR_COUNT=0
+          FILE_COUNT=0
+          
+          find . -name "*.lua" -not -path "./.git/*" | while read file; do
+            FILE_COUNT=$((FILE_COUNT + 1))
+            if luac -p "$file" 2>&1; then
+              echo "✅ $file"
+            else
+              echo "❌ $file"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
+          done
+          
+          echo ""
+          echo "=============================="
+          echo "Files checked: $FILE_COUNT"
+          echo "Errors found: $ERROR_COUNT"
+          
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            exit 1
+          fi
+
+  # Job 2: Validate source metadata
+  validate-metadata:
+    name: 📋 Validate Source Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check required metadata fields
+        run: |
+          echo "📋 Validating source metadata..."
+          
+          ERROR_COUNT=0
+          
+          for dir in zh en ja ru id pt fr ar mtl; do
+            if [ -d "$dir" ]; then
+              for file in "$dir"/*.lua; do
+                if [ -f "$file" ]; then
+                  SOURCE_NAME=$(basename "$file" .lua)
+                  
+                  # Check for required fields
+                  MISSING_FIELDS=""
+                  
+                  if ! grep -q 'id\s*=' "$file"; then
+                    MISSING_FIELDS="$MISSING_FIELDS id"
+                  fi
+                  
+                  if ! grep -q 'name\s*=' "$file"; then
+                    MISSING_FIELDS="$MISSING_FIELDS name"
+                  fi
+                  
+                  if ! grep -q 'version\s*=' "$file"; then
+                    MISSING_FIELDS="$MISSING_FIELDS version"
+                  fi
+                  
+                  if ! grep -q 'baseUrl\s*=' "$file"; then
+                    MISSING_FIELDS="$MISSING_FIELDS baseUrl"
+                  fi
+                  
+                  if ! grep -q 'language\s*=' "$file"; then
+                    MISSING_FIELDS="$MISSING_FIELDS language"
+                  fi
+                  
+                  if [ -n "$MISSING_FIELDS" ]; then
+                    echo "❌ $SOURCE_NAME: Missing$MISSING_FIELDS"
+                    ERROR_COUNT=$((ERROR_COUNT + 1))
+                  else
+                    echo "✅ $SOURCE_NAME ($dir)"
+                  fi
+                fi
+              done
+            fi
+          done
+          
+          echo ""
+          echo "=============================="
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "❌ Validation failed: $ERROR_COUNT errors"
+            exit 1
+          else
+            echo "✅ All metadata valid!"
+          fi
+
+  # Job 3: Validate bypasser module
+  validate-bypasser:
+    name: 🛡️ Validate Bypasser Module
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+
+      - name: Check bypasser module structure
+        run: |
+          echo "🛡️ Validating bypasser module..."
+          
+          REQUIRED_FILES=(
+            "bypasser/init.lua"
+            "bypasser/core.lua"
+            "bypasser/config.lua"
+            "bypasser/helpers.lua"
+          )
+          
+          ERROR_COUNT=0
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              # Check syntax
+              if luac -p "$file" 2>&1; then
+                echo "✅ $file"
+              else
+                echo "❌ $file (syntax error)"
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+              fi
+              
+              # Check that it returns a table
+              if ! grep -q "^return M$" "$file" && ! grep -q "^return {$" "$file"; then
+                echo "⚠️  $file may not return a module table"
+              fi
+            else
+              echo "❌ Missing: $file"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
+          done
+          
+          echo ""
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            exit 1
+          fi
+
+      - name: Test bypasser can be loaded
+        run: |
+          cat > /tmp/test_bypasser.lua << 'EOF'
+          -- Simulate NovelDokusha environment
+          package.path = "./?.lua;./?/init.lua;" .. package.path
+          
+          -- Mock functions that would be provided by NovelDokusha
+          http_get = function() return {success = true, body = "<html></html>"} end
+          HttpGet = function() return "<html></html>" end
+          HttpPost = function() return "" end
+          html_select = function() return {} end
+          html_select_first = function() return nil end
+          html_text = function() return "" end
+          html_attr = function() return "" end
+          string_trim = function(s) return s and s:match("^%s*(.-)%s*$") or "" end
+          string_clean = function(s) return s end
+          string_starts_with = function(s, p) return s and s:sub(1, #p) == p end
+          string_contains = function(s, p) return s and s:find(p) ~= nil end
+          string_ends_with = function(s, p) return s and s:sub(-#p) == p end
+          url_resolve = function(base, path) return base .. path end
+          url_encode = function(s) return s end
+          json_parse = function() return nil end
+          json_encode = function(t) return "{}" end
+          string_normalize = function(s) return s or "" end
+          log_error = function() end
+          
+          -- Try to load bypasser
+          local ok, result = pcall(require, "bypasser")
+          
+          if ok and result then
+            print("✅ Bypass loaded successfully!")
+            print("   Version: " .. tostring(result.version))
+            print("   Mode: " .. tostring(result.mode))
+            print("   Available: " .. tostring(result.isAvailable()))
+            
+            -- Test status function
+            local status = result.getStatus()
+            print("   Stats: " .. tostring(status.tiers_available[1]) .. "-tier system")
+            
+            os.exit(0)
+          else
+            print("❌ Failed to load bypasser:")
+            print(tostring(result))
+            os.exit(1)
+          end
+          EOF
+          
+          cd external-sources || cd .
+          lua /tmp/test_bypasser.lua
+
+  # Job 4: Check for common issues
+  lint-sources:
+    name: 🔎 Lint Sources for Common Issues
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for deprecated functions
+        run: |
+          echo "🔎 Checking for deprecated/incompatible functions..."
+          
+          ISSUES_FOUND=0
+          
+          # Find files using regex_replace (not available in all environments)
+          FILES_WITH_REGEX=$(grep -rl "regex_replace" --include="*.lua" . 2>/dev/null || true)
+          if [ -n "$FILES_WITH_REGEX" ]; then
+            echo "⚠️  Files using regex_replace (may not work everywhere):"
+            echo "$FILES_WITH_REGEX"
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          # Find files using html_remove (may cause issues)
+          FILES_WITH_REMOVE=$(grep -rl "html_remove" --include="*.lua" . 2>/dev/null || true)
+          if [ -n "$FILES_WITH_REMOVE" ]; then
+            echo "⚠️  Files using html_remove:"
+            echo "$FILES_WITH_REMOVE"
+          fi
+          
+          # Find files without bypasser
+          FILES_WITHOUT_BYPASS=$(find . -path "./bypasser/*" -prune -o -name "*.lua" -print | xargs grep -L 'require("bypasser")' 2>/dev/null || true)
+          COUNT_WITHOUT=$(echo "$FILES_WITHOUT_BYPASS" | grep -c "." || echo "0")
+          
+          echo ""
+          echo "=============================="
+          echo "Sources without bypasser: $COUNT_WITHOUT"
+          
+          if [ "$COUNT_WITHOUT" -gt 5 ]; then
+            echo "⚠️  Many sources don't have bypasser integration"
+          else
+            echo "✅ Most sources have bypasser!"
+          fi
+
+  # Summary job
+  summary:
+    name: ✅ Summary
+    needs: [validate-syntax, validate-metadata, validate-bypasser, lint-sources]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Syntax Validation | ${{ needs.validate-syntax.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Metadata Validation | ${{ needs.validate-metadata.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bypasser Validation | ${{ needs.validate-bypasser.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ${{ needs.lint-sources.result }} |" >> $GITHUB_STEP_SUMMARY

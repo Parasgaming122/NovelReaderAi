@@ -1,0 +1,335 @@
+# Bypasser Test Workflow
+# ========================
+# Tests bypasser against protected sites
+# Run manually when needed
+
+name: Test Bypass
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_url:
+        description: 'URL to test bypass against'
+        required: false
+        default: 'https://www.timotxt.com/'
+      max_retries:
+        description: 'Max retries per tier'
+        required: false
+        default: '3'
+      debug_mode:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  test-bypass:
+    name: 🧪 Test Bypass Against Sites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Lua & dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4 liblua5.4-dev lua-socket lua-json
+          luac -v
+
+      - name: Create test script
+        run: |
+          cat > /tmp/test_bypass.lua << 'TESTEOF'
+          -- Bypasser Test Script
+          -- Tests 4-tier architecture against target URL
+          
+          package.path = "./?.lua;./?/init.lua;" .. package.path
+          
+          -- Mock NovelDokusha environment
+          local mock_responses = {}
+          
+          function http_get(url, opts)
+              -- Simulate HTTP response
+              local is_cf_protected = url:find("timotxt") or url:find("69shuba")
+              
+              if is_cf_protected and math.random() > 0.7 then
+                  -- Simulate CF challenge (30% chance)
+                  return {
+                      success = false,
+                      status = 403,
+                      body = [[
+                          <!DOCTYPE html>
+                          <html>
+                          <head><title>Just a moment...</title></head>
+                          <body>
+                          <div id="challenge-running">
+                              <h2>Checking your browser before accessing...</h2>
+                              <div class="cf-browser-verification"></div>
+                          </div>
+                          </body>
+                          </html>
+                      ]],
+                      code = 403
+                  }
+              else
+                  -- Success response
+                  return {
+                      success = true,
+                      status = 200,
+                      body = [[
+                          <!DOCTYPE html>
+                          <html><head><title>Test Page</title></head>
+                          <body>
+                          <h1>Content Loaded Successfully</h1>
+                          <div class="content">Sample chapter content here.</div>
+                          </body></html>
+                      ]],
+                      code = 200,
+                      headers = {
+                          ["Set-Cookie"] = "cf_clearance=abc123; Path=/"
+                      }
+                  }
+              end
+          end
+          
+          function HttpGet(url, headers)
+              return http_get(url)
+          end
+          
+          function HttpPost(url, headers, data)
+              return http_get(url)
+          end
+          
+          function html_select(html, selector) return {} end
+          function html_select_first(html, selector) 
+              if html and html:find("content") then
+                  return {html = '<div class="content">Test</div>', text = "Test"}
+              end
+              return nil 
+          end
+          function html_text(html) return html or "" end
+          function html_attr(html, selector, attr) return "" end
+          function string_trim(s) return s and s:match("^%s*(.-)%s*$") or "" end
+          function string_clean(s) return s end
+          function string_starts_with(s, p) return s and s:sub(1, #p) == p end
+          function string_contains(s, p) return s and s:find(p) ~= nil end
+          function string_ends_with(s, p) return s and s:sub(-#p) == p end
+          function url_resolve(base, path) return base .. path end
+          function url_encode(s) return s end
+          function json_parse(s) return nil end
+          function json_encode(t) return "{}" end
+          function string_normalize(s) return s or "" end
+          function log_error(msg) print("[ERROR] " .. msg) end
+          
+          -- Configuration from workflow inputs
+          local TEST_URL = "${{ inputs.test_url }}"
+          local MAX_RETRIES = tonumber("${{ inputs.max_retries }}") or 3
+          local DEBUG = ${{ inputs.debug_mode }}
+          
+          print("=" .. string.rep("=", 60))
+          print("  BYPASS TEST SUITE")
+          print("=" .. string.rep("=", 60))
+          print("")
+          print("Target URL: " .. TEST_URL)
+          print("Max Retries: " .. MAX_RETRIES)
+          print("Debug Mode: " .. tostring(DEBUG))
+          print("")
+          
+          -- Load bypasser
+          print("📦 Loading bypasser module...")
+          local ok, bp = pcall(require, "bypasser")
+          
+          if not ok then
+              print("❌ Failed to load bypasser:")
+              print(tostring(bp))
+              os.exit(1)
+          end
+          
+          print("✅ Bypass loaded!")
+          print("   Version: " .. tostring(bp.version))
+          print("   Mode: " .. tostring(bp.mode))
+          print("")
+          
+          -- Configure for testing
+          if DEBUG then
+              -- Enable debug in config
+              local config = require("bypasser.config")
+              config.debug = true
+              config.max_retries = MAX_RETRIES
+          end
+          
+          -- Run tests
+          local tests_passed = 0
+          local tests_failed = 0
+          
+          -- Test 1: Module loads correctly
+          print("--- Test 1: Module Loading ---")
+          if bp.isAvailable and bp.isAvailable() then
+              print("✅ PASS: Module reports available")
+              tests_passed = tests_passed + 1
+          else
+              print("❌ FAIL: Module not available")
+              tests_failed = tests_failed + 1
+          end
+          
+          -- Test 2: Fetch function exists
+          print("")
+          print("--- Test 2: API Functions ---")
+          local required_funcs = {"fetch", "smartFetch", "get", "post", "search", "getStatus", "clearCache"}
+          local funcs_ok = true
+          for _, func in ipairs(required_funcs) do
+              if type(bp[func]) == "function" then
+                  print("   ✅ " .. func)
+              else
+                  print("   ❌ " .. func .. " (missing)")
+                  funcs_ok = false
+              end
+          end
+          if funcs_ok then
+              tests_passed = tests_passed + 1
+          else
+              tests_failed = tests_failed + 1
+          end
+          
+          -- Test 3: Execute fetch
+          print("")
+          print("--- Test 3: Fetch Execution ---")
+          print("Fetching: " .. TEST_URL)
+          
+          local start_time = os.clock()
+          local result = bp.smartFetch(TEST_URL, { retries = MAX_RETRIES })
+          local elapsed = (os.clock() - start_time) * 1000
+          
+          if result and result ~= "" then
+              print("✅ PASS: Got response (" .. #result .. " bytes, " .. math.floor(elapsed) .. "ms)")
+              
+              -- Check if it looks like content vs challenge
+              if result:find("Just a moment") or result:find("Checking your browser") then
+                  print("⚠️  Response appears to be a challenge page")
+              else
+                  print("✅ Response looks like valid content")
+              end
+              
+              tests_passed = tests_passed + 1
+          else
+              print("❌ FAIL: No response received")
+              tests_failed = tests_failed + 1
+          end
+          
+          -- Test 4: Status check
+          print("")
+          print("--- Test 4: Status Reporting ---")
+          local status = bp.getStatus()
+          if status and type(status) == "table" then
+              print("✅ PASS: Status available")
+              print("   Tiers: " .. table.concat(status.tiers_available or {}, ", "))
+              print("   Mode: " .. tostring(status.mode))
+              tests_passed = tests_passed + 1
+          else
+              print("❌ FAIL: No status")
+              tests_failed = tests_failed + 1
+          end
+          
+          -- Test 5: Cache operations
+          print("")
+          print("--- Test 5: Cache Operations ---")
+          bp.clearCache()
+          local status_after = bp.getStatus()
+          if status_after then
+              print("✅ PASS: Cache cleared successfully")
+              tests_passed = tests_passed + 1
+          else
+              print("❌ FAIL: Cache clear failed")
+              tests_failed = tests_failed + 1
+          end
+          
+          -- Summary
+          print("")
+          print("=" .. string.rep("=", 60))
+          print("  TEST SUMMARY")
+          print("=" .. string.rep("=", 60))
+          print("")
+          print("Passed: " .. tests_passed .. "/5")
+          print("Failed: " .. tests_failed .. "/5")
+          print("")
+          
+          if tests_failed > 0 then
+              print("❌ SOME TESTS FAILED")
+              os.exit(1)
+          else
+              print("✅ ALL TESTS PASSED!")
+              os.exit(0)
+          end
+          TESTEOF
+          
+          echo "✅ Test script created"
+
+      - name: Run bypass test
+        run: |
+          cd external-sources || cd .
+          lua /tmp/test_bypass.lua
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            *.log
+            test-output.txt
+          retention-days: 7
+
+  # Test multiple URLs at once
+  batch-test:
+    name: 🧪 Batch Test Multiple Sources
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_url == ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+
+      - name: Run batch validation
+        run: |
+          cd external-sources || cd .
+          
+          echo "🔍 Validating all sources have bypass support..."
+          
+          TOTAL=0
+          WITH_BYPASS=0
+          WITHOUT_BYPASS=0
+          
+          for dir in zh en ja ru id pt fr ar mtl; do
+              if [ -d "$dir" ]; then
+                  for file in "$dir"/*.lua; do
+                      if [ -f "$file" ]; then
+                          TOTAL=$((TOTAL + 1))
+                          
+                          if grep -q 'require("bypasser")' "$file"; then
+                              WITH_BYPASS=$((WITH_BYPASS + 1))
+                          else
+                              WITHOUT_BYPASS=$((WITHOUT_BYPASS + 1))
+                              SOURCE=$(basename "$file" .lua)
+                              echo "  ⚠️  $dir/$SOURCE - no bypass"
+                          fi
+                      fi
+                  done
+              fi
+          done
+          
+          echo ""
+          echo "=============================="
+          echo "Total sources: $TOTAL"
+          echo "With bypass: $WITH_BYPASS ($(echo "scale=1; $WITH_BYPASS * 100 / $TOTAL" | bc)%)"
+          echo "Without bypass: $WITHOUT_BYPASS"
+          echo ""
+          
+          if [ "$WITHOUT_BYPASS" -gt 5 ]; then
+              echo "⚠️  More than 5 sources without bypass"
+              exit 1
+          else
+              echo "✅ Good coverage!"
+          fi

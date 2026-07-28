@@ -1,0 +1,165 @@
+# GitHub Workflow: Automated Source Testing
+# Runs on every push/PR to test all Chinese novel sources
+# Tests accessibility, catalog, search, and generates detailed reports
+
+name: Source Testing
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'zh/*.lua'
+      - 'index.yaml'
+      - '.github/workflows/source-testing.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'zh/*.lua'
+      - 'index.yaml'
+  schedule:
+    # Run daily at midnight UTC to catch site changes
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test-sources:
+    name: Test Novel Sources
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 lxml
+
+      - name: Run source tests
+        id: tests
+        run: |
+          chmod +x .github/scripts/test_sources.py
+          python .github/scripts/test_sources.py
+        continue-on-error: true
+
+      - name: Generate report
+        if: always()
+        run: |
+          python .github/scripts/generate_report.py
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-test-results
+          path: |
+            test-results.json
+            test-report.md
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read results if available
+            let results = {};
+            try {
+              results = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+            } catch (e) {
+              console.log('No results file found');
+            }
+            
+            // Build comment
+            let comment = `## 📚 Source Test Results\n\n`;
+            comment += `**Triggered by**: ${github.event_name}\n\n`;
+            
+            if (Object.keys(results).length > 0) {
+              comment += `| Source | Status | Catalog | Search | CF |\n`;
+              comment += `|--------|--------|---------|--------|----|\n`;
+              
+              for (const [id, data] of Object.entries(results)) {
+                const access = data.accessible ? '✅' : '❌';
+                const catalog = data.catalog_ok ? `✅(${data.catalog_count})` : '❌';
+                const search = data.search_ok !== null ? (data.search_ok ? `✅(${data.search_count})` : '⚠️') : 'N/A';
+                const cf = data.has_cf ? '🛡️' : '-';
+                
+                comment += `| ${data.name} | ${access} | ${catalog} | ${search} | ${cf} |\n`;
+              }
+              
+              // Summary stats
+              const total = Object.keys(results).length;
+              const accessible = Object.values(results).filter(r => r.accessible).length;
+              const catalogOk = Object.values(results).filter(r => r.catalog_ok).length;
+              
+              comment += `\n**Summary**: ${accessible}/${total} accessible, ${catalogOk}/${total} catalogs working\n`;
+            } else {
+              comment += `⚠️ Test execution failed. Check the workflow logs.\n`;
+            }
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail on critical failures
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "Some sources failed testing. Check the report for details."
+          # Exit with error to alert maintainers
+          exit 1
+
+  # Secondary job: Validate Lua syntax
+  validate-syntax:
+    name: Validate Lua Syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install luacheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y luacheck || true
+          
+      - name: Check Lua files
+        run: |
+          echo "Checking Lua files in zh/ directory..."
+          for f in zh/*.lua; do
+            if [ -f "$f" ]; then
+              echo "Checking $f..."
+              # Basic syntax check using grep patterns
+              if grep -q "function getCatalogList" "$f"; then
+                echo "  ✓ Has getCatalogList"
+              else
+                echo "  ✗ Missing getCatalogList"
+                exit 1
+              fi
+              
+              if grep -q "function getChapterText" "$f"; then
+                echo "  ✓ Has getChapterText"
+              else
+                echo "  ✗ Missing getChapterText"
+                exit 1
+              fi
+              
+              # Check for common issues
+              if grep -qE "baseUrl\s*=\s*['\"]http" "$f"; then
+                echo "  ✓ Has baseUrl defined"
+              else
+                echo "  ✗ Missing baseUrl"
+                exit 1
+              fi
+            fi
+          done
+          
+          echo "All basic checks passed!"

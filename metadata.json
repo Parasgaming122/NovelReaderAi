@@ -1,0 +1,6 @@
+{
+  "name": "Novel Reader Console",
+  "description": "Chinese web novel reader console with Lua scraper execution and HTML translation",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

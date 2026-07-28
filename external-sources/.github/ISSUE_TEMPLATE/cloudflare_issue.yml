@@ -1,0 +1,63 @@
+---
+name: ☁️ Cloudflare/Bypass Issue
+about: Report issues with bypasser or CF-protected sites
+title: '[CF] <source_name> - <issue_type>'
+labels: ['cloudflare', 'bug']
+assignees: ''
+---
+
+## Issue Type
+- [ ] Source completely blocked (403/503)
+- [ ] Search doesn't work
+- [ ] Chapters won't load
+- [ ] Works sometimes, fails other times
+- [ ] Bypass module error
+
+## Source Details
+**Source Name:** 
+**Site URL:** 
+**Protection Type:** 
+- [ ] Cloudflare Turnstile
+- [ ] Cloudflare JS Challenge
+- [ ] hCaptcha
+- [ ] reCAPTCHA
+- [ ] Unknown / Other
+
+## What Happens?
+<!-- Describe the issue in detail -->
+
+## Current Bypass Config
+<!-- Share your config if modified -->
+
+```lua
+-- From bypasser/config.lua
+config.mode = "standalone"
+config.request_delay = { min = 500, max = 2000 }
+config.max_retries = 3
+```
+
+## Logs
+<!-- Enable debug mode and share relevant logs -->
+
+```
+Paste logs here
+```
+
+## Environment
+- **Bypass Mode:** standalone / trawl / hybrid
+- **Trawl URL:** (if using)
+- **Device:** 
+
+## Troubleshooting Attempted
+- [ ] Increased request delays in config
+- [ ] Enabled debug logging
+- [ ] Cleared cache (bp.clearCache())
+- [ ] Tried different modes
+
+---
+
+### Tips for Faster Resolution
+1. Include exact error messages
+2. Share the URL that's failing
+3. Mention if it works in browser
+4. Check if site recently changed protection

@@ -1,0 +1,50 @@
+---
+name: 🐛 Bug Report
+about: Report a source that's not working correctly
+title: '[BUG] <source_name> - <brief_description>'
+labels: ['bug']
+assignees: ''
+---
+
+## Bug Description
+<!-- Clearly describe the bug -->
+
+**Source Name:** 
+**Source URL:** 
+
+### Expected Behavior
+<!-- What should happen -->
+
+### Actual Behavior
+<!-- What actually happens -->
+
+## Steps to Reproduce
+1. Go to '...'
+2. Click on '...'
+3. Scroll down to '...'
+4. See error
+
+## Error Details
+<!-- Include any error messages, logs, or screenshots -->
+
+```
+Paste error here
+```
+
+## Environment
+- **App Version:** NovelDokusha v?
+- **Device:** Android / iOS / Other
+- **Bypass Version:** v2.0.0 (latest)
+
+## Additional Context
+<!-- Any other information about the problem -->
+
+### Checklist
+- [ ] I've checked this source isn't already reported
+- [ ] I've tried clearing app cache and restarting
+- [ ] I can reproduce the issue consistently
+- [ ] The source website is accessible in my browser
+
+---
+
+**Note:** If the source is blocked by Cloudflare, we're working on improving bypass! Check `bypasser/config.lua` to increase delays if needed.

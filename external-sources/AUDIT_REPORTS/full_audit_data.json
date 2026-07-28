@@ -1,0 +1,1755 @@
+{
+  "sources": {
+    "haodoo": {
+      "source_id": "haodoo",
+      "metadata": {
+        "id": "haodoo",
+        "name": "好读",
+        "version": "1.0.0",
+        "baseUrl": "https://www.haodoo.net/",
+        "language": "zh"
+      },
+      "file_path": "zh/haodoo.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3957,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.haodoo.net/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 127,
+        "final_url": "https://www.haodoo.net/"
+      },
+      "is_new_source": true
+    },
+    "shw5": {
+      "source_id": "shw5",
+      "metadata": {
+        "id": "shw5",
+        "name": "书香万卷",
+        "version": "1.0.0",
+        "baseUrl": "https://www.shw5.cc/",
+        "language": "zh"
+      },
+      "file_path": "zh/shw5.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3987,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.shw5.cc/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 115,
+        "final_url": "https://www.shuhuang8.cc/"
+      },
+      "is_new_source": true
+    },
+    "powanjuan": {
+      "source_id": "powanjuan",
+      "metadata": {
+        "id": "powanjuan",
+        "name": "破万卷",
+        "version": "1.0.0",
+        "baseUrl": "https://www.powanjuan.cc/",
+        "language": "zh"
+      },
+      "file_path": "zh/powanjuan.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 4194,
+      "line_count": 129,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.powanjuan.cc/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 134,
+        "final_url": "https://www.powanjuan.cc/"
+      },
+      "is_new_source": true
+    },
+    "biquge5200": {
+      "source_id": "biquge5200",
+      "metadata": {
+        "id": "biquge5200",
+        "name": "笔趣阁5200",
+        "version": "1.0.0",
+        "baseUrl": "https://www.biquge5200.cc/",
+        "language": "zh"
+      },
+      "file_path": "zh/biquge5200.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3992,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.biquge5200.cc/",
+        "status": "url_error",
+        "response_code": null,
+        "error": "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": true
+    },
+    "snapd": {
+      "source_id": "snapd",
+      "metadata": {
+        "id": "snapd",
+        "name": "SnapD小说",
+        "version": "1.0.0",
+        "baseUrl": "https://m.snapd.net/",
+        "language": "zh"
+      },
+      "file_path": "zh/snapd.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3962,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://m.snapd.net/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 105,
+        "final_url": "https://m.bqgsn.cc/"
+      },
+      "is_new_source": true
+    },
+    "ixdzs": {
+      "source_id": "ixdzs",
+      "metadata": {
+        "id": "ixdzs",
+        "name": "爱下电子书",
+        "version": "1.0.0",
+        "baseUrl": "https://ixdzs8.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/ixdzs.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 4168,
+      "line_count": 133,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 106,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local lastId = string.match(lastUrl, \"/p(%d+)%.html$\")",
+          "source_id": "ixdzs",
+          "file": "zh/ixdzs.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://ixdzs8.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 300,
+        "final_url": "https://ixdzs8.com/"
+      },
+      "is_new_source": true
+    },
+    "biqugecompany": {
+      "source_id": "biqugecompany",
+      "metadata": {
+        "id": "biqugecompany",
+        "name": "笔趣阁Company",
+        "version": "1.0.0",
+        "baseUrl": "https://www.biquge.company/",
+        "language": "zh"
+      },
+      "file_path": "zh/biqugecompany.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3935,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.biquge.company/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 715,
+        "final_url": "https://www.biquge.company/"
+      },
+      "is_new_source": true
+    },
+    "novel543": {
+      "source_id": "novel543",
+      "metadata": {
+        "id": "novel543",
+        "name": "Novel543",
+        "version": "1.0.2",
+        "baseUrl": "https://www.novel543.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/novel543.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 6178,
+      "line_count": 168,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 130,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local chapterFile = string.match(url, \"/([^/]+)%.html$\") or \"\"",
+          "source_id": "novel543",
+          "file": "zh/novel543.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 149,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "if string.match(fname, \"^\" .. chapterFile:gsub(\"%-\", \"%%-\") .. \"_%d+%.html$\") then",
+          "source_id": "novel543",
+          "file": "zh/novel543.lua"
+        }
+      ],
+      "finding_count": 2,
+      "functional_test": {
+        "url_tested": "https://www.novel543.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 187,
+        "final_url": "https://www.novel543.com/"
+      },
+      "is_new_source": true
+    },
+    "trxs": {
+      "source_id": "trxs",
+      "metadata": {
+        "id": "trxs",
+        "name": "天人小说",
+        "version": "1.0.0",
+        "baseUrl": "https://trxs.cc/",
+        "language": "zh"
+      },
+      "file_path": "zh/trxs.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3958,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://trxs.cc/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 247,
+        "final_url": "https://trxs.cc/"
+      },
+      "is_new_source": true
+    },
+    "shuba69": {
+      "source_id": "shuba69",
+      "metadata": {
+        "id": "shuba69",
+        "name": "69shuba",
+        "version": "1.0.1",
+        "baseUrl": "https://www.69shuba.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/shuba69.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 6743,
+      "line_count": 162,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 110,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local id = string.match(bookUrl, \"/(%d+)%.htm$\")",
+          "source_id": "shuba69",
+          "file": "zh/shuba69.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://www.69shuba.com/",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": true
+    },
+    "twkan": {
+      "source_id": "twkan",
+      "metadata": {
+        "id": "twkan",
+        "name": "TWKan",
+        "version": "1.0.0",
+        "baseUrl": "https://twkan.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/twkan.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 6431,
+      "line_count": 157,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 115,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local bookId = string.match(bookUrl, \"/book/([^/.]+)%.html\")",
+          "source_id": "twkan",
+          "file": "zh/twkan.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://twkan.com/",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": true
+    },
+    "piaotia": {
+      "source_id": "piaotia",
+      "metadata": {
+        "id": "piaotia",
+        "name": "PiaoTia",
+        "version": "1.0.0",
+        "baseUrl": "https://www.piaotia.com",
+        "language": "zh"
+      },
+      "file_path": "zh/piaotia.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 9478,
+      "line_count": 228,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 22,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local folderId, bookId = string.match(bookUrl, \"/(%d+)/(%d+)%.html$\")",
+          "source_id": "piaotia",
+          "file": "zh/piaotia.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 24,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "folderId, bookId = string.match(bookUrl, \"/(%d+)/(%d+)/?$\")",
+          "source_id": "piaotia",
+          "file": "zh/piaotia.lua"
+        }
+      ],
+      "finding_count": 2,
+      "functional_test": {
+        "url_tested": "https://www.piaotia.com",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 225,
+        "final_url": "https://www.piaotia.com"
+      },
+      "is_new_source": true
+    },
+    "rayforboe": {
+      "source_id": "rayforboe",
+      "metadata": {
+        "id": "rayforboe",
+        "name": "顶级看书网",
+        "version": "1.0.0",
+        "baseUrl": "https://www.rayforboe.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/rayforboe.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3985,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.rayforboe.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 113,
+        "final_url": "https://www.rayforboe.com/"
+      },
+      "is_new_source": true
+    },
+    "ddxss": {
+      "source_id": "ddxss",
+      "metadata": {
+        "id": "ddxss",
+        "name": "顶点小说",
+        "version": "1.0.0",
+        "baseUrl": "https://www.ddxss.cc/",
+        "language": "zh"
+      },
+      "file_path": "zh/ddxss.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 4366,
+      "line_count": 135,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.ddxss.cc/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 722,
+        "final_url": "https://www.ddxss.cc/"
+      },
+      "is_new_source": true
+    },
+    "wanben": {
+      "source_id": "wanben",
+      "metadata": {
+        "id": "wanben",
+        "name": "万本TXT",
+        "version": "1.0.0",
+        "baseUrl": "https://www.10000txt.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/wanben.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3966,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.10000txt.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 772,
+        "final_url": "https://www.10000txt.com/"
+      },
+      "is_new_source": true
+    },
+    "soxs": {
+      "source_id": "soxs",
+      "metadata": {
+        "id": "soxs",
+        "name": "搜小说网",
+        "version": "1.0.0",
+        "baseUrl": "https://www.soxs.cc/",
+        "language": "zh"
+      },
+      "file_path": "zh/soxs.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 3970,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.soxs.cc/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1204,
+        "final_url": "https://www.soxs.cc/"
+      },
+      "is_new_source": true
+    },
+    "ttkan": {
+      "source_id": "ttkan",
+      "metadata": {
+        "id": "ttkan",
+        "name": "TTKan",
+        "version": "1.0.0",
+        "baseUrl": "https://www.ttkan.co/",
+        "language": "zh"
+      },
+      "file_path": "zh/ttkan.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 7820,
+      "line_count": 196,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 150,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local chapterName = string.match(match, '\"chapter_name\"%s*:%s*\"([^\"]+)\"')",
+          "source_id": "ttkan",
+          "file": "zh/ttkan.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://www.ttkan.co/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 34,
+        "final_url": "https://www.ttkan.co/"
+      },
+      "is_new_source": true
+    },
+    "shuhaige": {
+      "source_id": "shuhaige",
+      "metadata": {
+        "id": "shuhaige",
+        "name": "书海阁",
+        "version": "1.0.0",
+        "baseUrl": "https://m.shuhaige.net/",
+        "language": "zh"
+      },
+      "file_path": "zh/shuhaige.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 4049,
+      "line_count": 128,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://m.shuhaige.net/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 22196,
+        "final_url": "https://m.shuhaige.net/"
+      },
+      "is_new_source": true
+    },
+    "quanben5": {
+      "source_id": "quanben5",
+      "metadata": {
+        "id": "quanben5",
+        "name": "Quanben5",
+        "version": "1.0.0",
+        "baseUrl": "https://big5.quanben5.com/",
+        "language": "zh"
+      },
+      "file_path": "zh/quanben5.lua",
+      "category": "zh",
+      "language_name": "Chinese",
+      "file_size_bytes": 10798,
+      "line_count": 261,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://big5.quanben5.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 477,
+        "final_url": "https://big5.quanben5.com/"
+      },
+      "is_new_source": true
+    },
+    "novelnice": {
+      "source_id": "novelnice",
+      "metadata": {
+        "id": "novelnice",
+        "name": "NovelNice",
+        "version": "1.0.0",
+        "baseUrl": "https://novelnice.com",
+        "language": "en"
+      },
+      "file_path": "en/novelnice.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 15363,
+      "line_count": 388,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://novelnice.com",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 812,
+        "final_url": "https://novelnice.com"
+      },
+      "is_new_source": false
+    },
+    "nobadnovel": {
+      "source_id": "nobadnovel",
+      "metadata": {
+        "id": "nobadnovel",
+        "name": "NoBadNovel",
+        "version": "1.0.0",
+        "baseUrl": "https://www.nobadnovel.com/",
+        "language": "en"
+      },
+      "file_path": "en/nobadnovel.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 6257,
+      "line_count": 157,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.nobadnovel.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 789,
+        "final_url": "https://www.nobadnovel.com/"
+      },
+      "is_new_source": false
+    },
+    "allnovel": {
+      "source_id": "allnovel",
+      "metadata": {
+        "id": "allnovel",
+        "name": "AllNovel",
+        "version": "1.0.3",
+        "baseUrl": "https://allnovel.org/",
+        "language": "en"
+      },
+      "file_path": "en/allnovel.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 12281,
+      "line_count": 297,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 21,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local slug = string.match(bookUrl, \"/([^/?#]+)%.html$\") or string.match(bookUrl, \"/([^/?#]+)/?$\") or",
+          "source_id": "allnovel",
+          "file": "en/allnovel.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 129,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local p = string.match(href, \"[?&]page=(%d+)\")",
+          "source_id": "allnovel",
+          "file": "en/allnovel.lua"
+        }
+      ],
+      "finding_count": 2,
+      "functional_test": {
+        "url_tested": "https://allnovel.org/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 636,
+        "final_url": "https://allnovel.org/"
+      },
+      "is_new_source": false
+    },
+    "wuxia_world_site": {
+      "source_id": "wuxia_world_site",
+      "metadata": {
+        "id": "wuxia_world_site",
+        "name": "WuxiaWorld.site",
+        "version": "1.0.2",
+        "baseUrl": "https://wuxiaworld.site/",
+        "language": "en"
+      },
+      "file_path": "en/wuxiaworld_site.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 13523,
+      "line_count": 310,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://wuxiaworld.site/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1155,
+        "final_url": "https://wuxiaworld.site/"
+      },
+      "is_new_source": false
+    },
+    "novelphoenix": {
+      "source_id": "novelphoenix",
+      "metadata": {
+        "id": "novelphoenix",
+        "name": "Novel Phoenix",
+        "version": "1.0.6",
+        "baseUrl": "https://novelphoenix.com",
+        "language": "en"
+      },
+      "file_path": "en/novelphoenix.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 19394,
+      "line_count": 452,
+      "ponytail_findings": [
+        {
+          "category": "code_smells",
+          "line": 220,
+          "pattern": "sleep\\(\\d+\\)",
+          "description": "Hardcoded sleep delay",
+          "code_snippet": "if chunkEnd < maxPage then sleep(2000) end",
+          "source_id": "novelphoenix",
+          "file": "en/novelphoenix.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://novelphoenix.com",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 517,
+        "final_url": "https://novelphoenix.com"
+      },
+      "is_new_source": false
+    },
+    "novelfire": {
+      "source_id": "novelfire",
+      "metadata": {
+        "name": "NovelFire",
+        "version": "1.0.6",
+        "baseUrl": "https://novelfire.net",
+        "language": "en"
+      },
+      "file_path": "en/novelfire.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 18901,
+      "line_count": 446,
+      "ponytail_findings": [
+        {
+          "category": "code_smells",
+          "line": 216,
+          "pattern": "sleep\\(\\d+\\)",
+          "description": "Hardcoded sleep delay",
+          "code_snippet": "if chunkEnd < maxPage then sleep(2000) end",
+          "source_id": "novelfire",
+          "file": "en/novelfire.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://novelfire.net",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 320,
+        "final_url": "https://novelfire.net"
+      },
+      "is_new_source": false
+    },
+    "NovelArrow": {
+      "source_id": "NovelArrow",
+      "metadata": {
+        "id": "NovelArrow",
+        "name": "Novel Arrow",
+        "version": "1.0.2",
+        "baseUrl": "https://novelarrow.com/",
+        "language": "en"
+      },
+      "file_path": "en/novelarrow.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 18514,
+      "line_count": 412,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://novelarrow.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 561,
+        "final_url": "https://novelarrow.com/"
+      },
+      "is_new_source": false
+    },
+    "novelfull": {
+      "source_id": "novelfull",
+      "metadata": {
+        "name": "NovelFull",
+        "version": "1.0.3",
+        "baseUrl": "https://novelfull.net/",
+        "language": "en"
+      },
+      "file_path": "en/novelfull.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 11462,
+      "line_count": 277,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://novelfull.net/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 300,
+        "final_url": "https://novelfull.net/"
+      },
+      "is_new_source": false
+    },
+    "freewebnovel": {
+      "source_id": "freewebnovel",
+      "metadata": {
+        "id": "freewebnovel",
+        "name": "FreeWebNovel",
+        "version": "1.0.2",
+        "baseUrl": "https://freewebnovel.com",
+        "language": "en"
+      },
+      "file_path": "en/freewebnovel.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 13027,
+      "line_count": 305,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://freewebnovel.com",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "mvlempyr.com": {
+      "source_id": "mvlempyr.com",
+      "metadata": {
+        "id": "mvlempyr.com",
+        "name": "MVLEMPYR",
+        "version": "1.0.12",
+        "baseUrl": "https://www.mvlempyr.io",
+        "language": "en"
+      },
+      "file_path": "en/mvlempyr.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 72472,
+      "line_count": 1243,
+      "ponytail_findings": [
+        {
+          "category": "code_smells",
+          "line": 171,
+          "pattern": "sleep\\(\\d+\\)",
+          "description": "Hardcoded sleep delay",
+          "code_snippet": "sleep(200)",
+          "source_id": "mvlempyr.com",
+          "file": "en/mvlempyr.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://www.mvlempyr.io",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 161,
+        "final_url": "https://www.mvlempyr.io"
+      },
+      "is_new_source": false
+    },
+    "scribblehub": {
+      "source_id": "scribblehub",
+      "metadata": {
+        "id": "scribblehub",
+        "name": "ScribbleHub",
+        "version": "1.0.1",
+        "baseUrl": "https://www.scribblehub.com/",
+        "language": "en"
+      },
+      "file_path": "en/scribblehub.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 13980,
+      "line_count": 354,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 110,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local seriesId = string.match(bookUrl, \"/series/(%d+)/\")",
+          "source_id": "scribblehub",
+          "file": "en/scribblehub.lua"
+        }
+      ],
+      "finding_count": 1,
+      "functional_test": {
+        "url_tested": "https://www.scribblehub.com/",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "novelbuddy": {
+      "source_id": "novelbuddy",
+      "metadata": {
+        "id": "novelbuddy",
+        "name": "NovelBuddy",
+        "version": "3.0.0",
+        "baseUrl": "https://novelbuddy.com",
+        "language": "en"
+      },
+      "file_path": "en/novelbuddy_io.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 21962,
+      "line_count": 535,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://novelbuddy.com",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 353,
+        "final_url": "https://novelbuddy.me/"
+      },
+      "is_new_source": false
+    },
+    "royal_road": {
+      "source_id": "royal_road",
+      "metadata": {
+        "id": "royal_road",
+        "name": "Royal Road",
+        "version": "1.0.2",
+        "baseUrl": "https://www.royalroad.com",
+        "language": "en"
+      },
+      "file_path": "en/royal_road.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 19022,
+      "line_count": 430,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.royalroad.com",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "novelhall": {
+      "source_id": "novelhall",
+      "metadata": {
+        "name": "NovelHall",
+        "version": "1.0.1",
+        "baseUrl": "https://www.novelhall.com",
+        "language": "en"
+      },
+      "file_path": "en/novelhall.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 5763,
+      "line_count": 144,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.novelhall.com",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "read_novel_full": {
+      "source_id": "read_novel_full",
+      "metadata": {
+        "id": "read_novel_full",
+        "name": "ReadNovelFull",
+        "version": "1.0.3",
+        "baseUrl": "https://readnovelfull.com/",
+        "language": "en"
+      },
+      "file_path": "en/readnovelfull.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 12221,
+      "line_count": 278,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://readnovelfull.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 143,
+        "final_url": "https://readnovelfull.com/"
+      },
+      "is_new_source": false
+    },
+    "NovelBin": {
+      "source_id": "NovelBin",
+      "metadata": {
+        "id": "NovelBin",
+        "name": "Novel Bin",
+        "version": "1.1.1",
+        "baseUrl": "https://novelbin.com/",
+        "language": "en"
+      },
+      "file_path": "en/novelbin.lua",
+      "category": "en",
+      "language_name": "English",
+      "file_size_bytes": 14219,
+      "line_count": 345,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://novelbin.com/",
+        "status": "url_error",
+        "response_code": null,
+        "error": "[Errno -5] No address associated with hostname",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "syosetu": {
+      "source_id": "syosetu",
+      "metadata": {
+        "id": "syosetu",
+        "name": "Syosetu",
+        "version": "1.1.0",
+        "baseUrl": "https://ncode.syosetu.com/",
+        "language": "ja"
+      },
+      "file_path": "ja/syosetu.lua",
+      "category": "ja",
+      "language_name": "Japanese",
+      "file_size_bytes": 12611,
+      "line_count": 262,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 148,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local p = string.match(lastLink.href, \"p=(%d+)\")",
+          "source_id": "syosetu",
+          "file": "ja/syosetu.lua"
+        },
+        {
+          "category": "code_smells",
+          "line": 167,
+          "pattern": "sleep\\(\\d+\\)",
+          "description": "Hardcoded sleep delay",
+          "code_snippet": "sleep(300)",
+          "source_id": "syosetu",
+          "file": "ja/syosetu.lua"
+        }
+      ],
+      "finding_count": 2,
+      "functional_test": {
+        "url_tested": "https://ncode.syosetu.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 435,
+        "final_url": "https://syosetu.com/"
+      },
+      "is_new_source": false
+    },
+    "indowebnovel": {
+      "source_id": "indowebnovel",
+      "metadata": {
+        "id": "indowebnovel",
+        "name": "Indowebnovel",
+        "version": "1.0.1",
+        "baseUrl": "https://indowebnovel.id/",
+        "language": "id"
+      },
+      "file_path": "id/indowebnovel.lua",
+      "category": "id",
+      "language_name": "Indonesian",
+      "file_size_bytes": 13795,
+      "line_count": 340,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://indowebnovel.id/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 677,
+        "final_url": "https://indowebnovel.id/"
+      },
+      "is_new_source": false
+    },
+    "baca_lightnovel": {
+      "source_id": "baca_lightnovel",
+      "metadata": {
+        "id": "baca_lightnovel",
+        "name": "Baca Lightnovel",
+        "version": "1.0.1",
+        "baseUrl": "https://bacalightnovel.co/",
+        "language": "id"
+      },
+      "file_path": "id/bacalightnovel.lua",
+      "category": "id",
+      "language_name": "Indonesian",
+      "file_size_bytes": 11772,
+      "line_count": 286,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://bacalightnovel.co/",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "meionovels": {
+      "source_id": "meionovels",
+      "metadata": {
+        "id": "meionovels",
+        "name": "MeioNovels",
+        "version": "1.0.2",
+        "baseUrl": "https://meionovels.com",
+        "language": "id"
+      },
+      "file_path": "id/meionovels.lua",
+      "category": "id",
+      "language_name": "Indonesian",
+      "file_size_bytes": 16500,
+      "line_count": 393,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://meionovels.com",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 684,
+        "final_url": "https://meionovels.com"
+      },
+      "is_new_source": false
+    },
+    "ranobehub": {
+      "source_id": "ranobehub",
+      "metadata": {
+        "id": "ranobehub",
+        "name": "RanobeHub",
+        "version": "1.0.1",
+        "baseUrl": "https://ranobehub.org",
+        "language": "ru"
+      },
+      "file_path": "ru/ranobehub.lua",
+      "category": "ru",
+      "language_name": "Russian",
+      "file_size_bytes": 38151,
+      "line_count": 650,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://ranobehub.org",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1265,
+        "final_url": "https://ranobehub.org"
+      },
+      "is_new_source": false
+    },
+    "ranobelib": {
+      "source_id": "ranobelib",
+      "metadata": {
+        "id": "ranobelib",
+        "name": "RanobeLib",
+        "version": "1.0.6",
+        "baseUrl": "https://ranobelib.me/",
+        "language": "ru"
+      },
+      "file_path": "ru/ranobelib.lua",
+      "category": "ru",
+      "language_name": "Russian",
+      "file_size_bytes": 30334,
+      "line_count": 677,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://ranobelib.me/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1168,
+        "final_url": "https://ranobelib.me/"
+      },
+      "is_new_source": false
+    },
+    "jaomix": {
+      "source_id": "jaomix",
+      "metadata": {
+        "id": "jaomix",
+        "name": "Jaomix",
+        "version": "1.0.3",
+        "baseUrl": "https://jaomix.ru/",
+        "language": "ru"
+      },
+      "file_path": "ru/jaomix.lua",
+      "category": "ru",
+      "language_name": "Russian",
+      "file_size_bytes": 18256,
+      "line_count": 408,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://jaomix.ru/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1535,
+        "final_url": "https://jaomix.ru/"
+      },
+      "is_new_source": false
+    },
+    "ifreedom": {
+      "source_id": "ifreedom",
+      "metadata": {
+        "id": "ifreedom",
+        "name": "iFreedom",
+        "version": "1.1.3",
+        "baseUrl": "https://ifreedom.su/",
+        "language": "ru"
+      },
+      "file_path": "ru/ifreedom.lua",
+      "category": "ru",
+      "language_name": "Russian",
+      "file_size_bytes": 14953,
+      "line_count": 324,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://ifreedom.su/",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "bookhamster": {
+      "source_id": "bookhamster",
+      "metadata": {
+        "id": "bookhamster",
+        "name": "Bookhamster",
+        "version": "1.1.2",
+        "baseUrl": "https://bookhamster.ru/",
+        "language": "ru"
+      },
+      "file_path": "ru/bookhamster.lua",
+      "category": "ru",
+      "language_name": "Russian",
+      "file_size_bytes": 15231,
+      "line_count": 318,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://bookhamster.ru/",
+        "status": "url_error",
+        "response_code": null,
+        "error": "timed out",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    },
+    "sonicmtl": {
+      "source_id": "sonicmtl",
+      "metadata": {
+        "id": "sonicmtl",
+        "name": "Sonic MTL",
+        "version": "1.7.1",
+        "baseUrl": "https://www.sonicmtl.com",
+        "language": "Mtl"
+      },
+      "file_path": "mtl/sonicmtl.lua",
+      "category": "mtl",
+      "language_name": "MTL",
+      "file_size_bytes": 17904,
+      "line_count": 444,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://www.sonicmtl.com",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1281,
+        "final_url": "https://www.sonicmtl.com"
+      },
+      "is_new_source": false
+    },
+    "wtrlab": {
+      "source_id": "wtrlab",
+      "metadata": {
+        "id": "wtrlab",
+        "name": "WTR-LAB",
+        "version": "1.1.4",
+        "baseUrl": "https://wtr-lab.com/",
+        "language": "MTL"
+      },
+      "file_path": "mtl/wtrlab.lua",
+      "category": "mtl",
+      "language_name": "MTL",
+      "file_size_bytes": 41024,
+      "line_count": 1375,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 171,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local novelId = string.match(bookUrl, \"/novel/(%d+)/\")",
+          "source_id": "wtrlab",
+          "file": "mtl/wtrlab.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 176,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local slug = string.match(bookUrl, \"/novel/%d+/([^/?#]+)\") or \"\"",
+          "source_id": "wtrlab",
+          "file": "mtl/wtrlab.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 325,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local novelId = string.match(chapterUrl, \"/novel/(%d+)/\")",
+          "source_id": "wtrlab",
+          "file": "mtl/wtrlab.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 331,
+          "pattern": "string\\.match.*[%w_]+",
+          "description": "Complex string matching",
+          "code_snippet": "local chapterNo = tonumber(string.match(chapterUrl, \"/chapter%-(%d+)\")) or 1",
+          "source_id": "wtrlab",
+          "file": "mtl/wtrlab.lua"
+        },
+        {
+          "category": "code_smells",
+          "line": 182,
+          "pattern": "sleep\\(\\d+\\)",
+          "description": "Hardcoded sleep delay",
+          "code_snippet": "sleep(300)",
+          "source_id": "wtrlab",
+          "file": "mtl/wtrlab.lua"
+        }
+      ],
+      "finding_count": 5,
+      "functional_test": {
+        "url_tested": "https://wtr-lab.com/",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 341,
+        "final_url": "https://wtr-lab.com/"
+      },
+      "is_new_source": false
+    },
+    "truthnovel": {
+      "source_id": "truthnovel",
+      "metadata": {
+        "id": "truthnovel",
+        "name": "Truth Novel",
+        "version": "1.1.0",
+        "baseUrl": "https://truthnovel.top",
+        "language": "ar"
+      },
+      "file_path": "ar/truthnovel.lua",
+      "category": "ar",
+      "language_name": "Arabic",
+      "file_size_bytes": 4108,
+      "line_count": 133,
+      "ponytail_findings": [],
+      "finding_count": 0,
+      "functional_test": {
+        "url_tested": "https://truthnovel.top",
+        "status": "working",
+        "response_code": 200,
+        "error": null,
+        "load_time_ms": 1137,
+        "final_url": "https://truthnovel.top"
+      },
+      "is_new_source": false
+    },
+    "novelfrance": {
+      "source_id": "novelfrance",
+      "metadata": {
+        "id": "novelfrance",
+        "name": "NovelFrance",
+        "version": "1.0.9",
+        "baseUrl": "https://novelfrance.fr",
+        "language": "fr"
+      },
+      "file_path": "fr/novelfrance.lua",
+      "category": "fr",
+      "language_name": "French",
+      "file_size_bytes": 17202,
+      "line_count": 427,
+      "ponytail_findings": [
+        {
+          "category": "stdlib_candidates",
+          "line": 19,
+          "pattern": "string\\.gsub.*%s+",
+          "description": "Manual whitespace trim (could use helper)",
+          "code_snippet": "text = string.gsub(text, \"<br%s*/?>\", \"\\n\")",
+          "source_id": "novelfrance",
+          "file": "fr/novelfrance.lua"
+        },
+        {
+          "category": "stdlib_candidates",
+          "line": 21,
+          "pattern": "string\\.gsub.*%s+",
+          "description": "Manual whitespace trim (could use helper)",
+          "code_snippet": "text = string.gsub(text, \"%s+\", \" \")",
+          "source_id": "novelfrance",
+          "file": "fr/novelfrance.lua"
+        },
+        {
+          "category": "code_smells",
+          "line": 227,
+          "pattern": "sleep\\(\\d+\\)",
+          "description": "Hardcoded sleep delay",
+          "code_snippet": "sleep(50)",
+          "source_id": "novelfrance",
+          "file": "fr/novelfrance.lua"
+        }
+      ],
+      "finding_count": 3,
+      "functional_test": {
+        "url_tested": "https://novelfrance.fr",
+        "status": "http_error",
+        "response_code": 403,
+        "error": "Forbidden",
+        "load_time_ms": null,
+        "final_url": null
+      },
+      "is_new_source": false
+    }
+  },
+  "summary": {
+    "total_sources": 48,
+    "working": 36,
+    "broken": 12,
+    "issues_found": 24,
+    "audit_timestamp": "2026-07-24T09:00:18.506913",
+    "by_category": {
+      "zh": {
+        "total": 19,
+        "working": 16,
+        "broken": 3,
+        "issues": 8
+      },
+      "en": {
+        "total": 16,
+        "working": 11,
+        "broken": 5,
+        "issues": 6
+      },
+      "ja": {
+        "total": 1,
+        "working": 1,
+        "broken": 0,
+        "issues": 2
+      },
+      "id": {
+        "total": 3,
+        "working": 2,
+        "broken": 1,
+        "issues": 0
+      },
+      "ru": {
+        "total": 5,
+        "working": 3,
+        "broken": 2,
+        "issues": 0
+      },
+      "mtl": {
+        "total": 2,
+        "working": 2,
+        "broken": 0,
+        "issues": 5
+      },
+      "ar": {
+        "total": 1,
+        "working": 1,
+        "broken": 0,
+        "issues": 0
+      },
+      "fr": {
+        "total": 1,
+        "working": 0,
+        "broken": 1,
+        "issues": 3
+      }
+    }
+  },
+  "ponytail_findings": [
+    {
+      "category": "stdlib_candidates",
+      "line": 106,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local lastId = string.match(lastUrl, \"/p(%d+)%.html$\")",
+      "source_id": "ixdzs",
+      "file": "zh/ixdzs.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 130,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local chapterFile = string.match(url, \"/([^/]+)%.html$\") or \"\"",
+      "source_id": "novel543",
+      "file": "zh/novel543.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 149,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "if string.match(fname, \"^\" .. chapterFile:gsub(\"%-\", \"%%-\") .. \"_%d+%.html$\") then",
+      "source_id": "novel543",
+      "file": "zh/novel543.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 110,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local id = string.match(bookUrl, \"/(%d+)%.htm$\")",
+      "source_id": "shuba69",
+      "file": "zh/shuba69.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 115,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local bookId = string.match(bookUrl, \"/book/([^/.]+)%.html\")",
+      "source_id": "twkan",
+      "file": "zh/twkan.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 22,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local folderId, bookId = string.match(bookUrl, \"/(%d+)/(%d+)%.html$\")",
+      "source_id": "piaotia",
+      "file": "zh/piaotia.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 24,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "folderId, bookId = string.match(bookUrl, \"/(%d+)/(%d+)/?$\")",
+      "source_id": "piaotia",
+      "file": "zh/piaotia.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 150,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local chapterName = string.match(match, '\"chapter_name\"%s*:%s*\"([^\"]+)\"')",
+      "source_id": "ttkan",
+      "file": "zh/ttkan.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 21,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local slug = string.match(bookUrl, \"/([^/?#]+)%.html$\") or string.match(bookUrl, \"/([^/?#]+)/?$\") or",
+      "source_id": "allnovel",
+      "file": "en/allnovel.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 129,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local p = string.match(href, \"[?&]page=(%d+)\")",
+      "source_id": "allnovel",
+      "file": "en/allnovel.lua"
+    },
+    {
+      "category": "code_smells",
+      "line": 220,
+      "pattern": "sleep\\(\\d+\\)",
+      "description": "Hardcoded sleep delay",
+      "code_snippet": "if chunkEnd < maxPage then sleep(2000) end",
+      "source_id": "novelphoenix",
+      "file": "en/novelphoenix.lua"
+    },
+    {
+      "category": "code_smells",
+      "line": 216,
+      "pattern": "sleep\\(\\d+\\)",
+      "description": "Hardcoded sleep delay",
+      "code_snippet": "if chunkEnd < maxPage then sleep(2000) end",
+      "source_id": "novelfire",
+      "file": "en/novelfire.lua"
+    },
+    {
+      "category": "code_smells",
+      "line": 171,
+      "pattern": "sleep\\(\\d+\\)",
+      "description": "Hardcoded sleep delay",
+      "code_snippet": "sleep(200)",
+      "source_id": "mvlempyr.com",
+      "file": "en/mvlempyr.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 110,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local seriesId = string.match(bookUrl, \"/series/(%d+)/\")",
+      "source_id": "scribblehub",
+      "file": "en/scribblehub.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 148,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local p = string.match(lastLink.href, \"p=(%d+)\")",
+      "source_id": "syosetu",
+      "file": "ja/syosetu.lua"
+    },
+    {
+      "category": "code_smells",
+      "line": 167,
+      "pattern": "sleep\\(\\d+\\)",
+      "description": "Hardcoded sleep delay",
+      "code_snippet": "sleep(300)",
+      "source_id": "syosetu",
+      "file": "ja/syosetu.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 171,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local novelId = string.match(bookUrl, \"/novel/(%d+)/\")",
+      "source_id": "wtrlab",
+      "file": "mtl/wtrlab.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 176,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local slug = string.match(bookUrl, \"/novel/%d+/([^/?#]+)\") or \"\"",
+      "source_id": "wtrlab",
+      "file": "mtl/wtrlab.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 325,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local novelId = string.match(chapterUrl, \"/novel/(%d+)/\")",
+      "source_id": "wtrlab",
+      "file": "mtl/wtrlab.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 331,
+      "pattern": "string\\.match.*[%w_]+",
+      "description": "Complex string matching",
+      "code_snippet": "local chapterNo = tonumber(string.match(chapterUrl, \"/chapter%-(%d+)\")) or 1",
+      "source_id": "wtrlab",
+      "file": "mtl/wtrlab.lua"
+    },
+    {
+      "category": "code_smells",
+      "line": 182,
+      "pattern": "sleep\\(\\d+\\)",
+      "description": "Hardcoded sleep delay",
+      "code_snippet": "sleep(300)",
+      "source_id": "wtrlab",
+      "file": "mtl/wtrlab.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 19,
+      "pattern": "string\\.gsub.*%s+",
+      "description": "Manual whitespace trim (could use helper)",
+      "code_snippet": "text = string.gsub(text, \"<br%s*/?>\", \"\\n\")",
+      "source_id": "novelfrance",
+      "file": "fr/novelfrance.lua"
+    },
+    {
+      "category": "stdlib_candidates",
+      "line": 21,
+      "pattern": "string\\.gsub.*%s+",
+      "description": "Manual whitespace trim (could use helper)",
+      "code_snippet": "text = string.gsub(text, \"%s+\", \" \")",
+      "source_id": "novelfrance",
+      "file": "fr/novelfrance.lua"
+    },
+    {
+      "category": "code_smells",
+      "line": 227,
+      "pattern": "sleep\\(\\d+\\)",
+      "description": "Hardcoded sleep delay",
+      "code_snippet": "sleep(50)",
+      "source_id": "novelfrance",
+      "file": "fr/novelfrance.lua"
+    }
+  ],
+  "functional_test_results": {}
+}
