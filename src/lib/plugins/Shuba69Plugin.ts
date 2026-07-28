@@ -58,19 +58,22 @@ export class Shuba69Plugin implements NovelSourcePlugin {
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
     const gbkQuery = encodeGBKComponent(query);
-    const searchUrl = `https://www.69shuba.com/modules/article/search.php?searchkey=${gbkQuery}&searchtype=all`;
-    let res = await smartFetch(searchUrl, { charset: 'GBK' });
+    
+    // Primary: POST search request on 69shuba with GBK body
+    let res = await smartFetch('https://www.69shuba.com/modules/article/search.php', {
+      method: 'POST',
+      body: `searchkey=${gbkQuery}&searchtype=all&page=${page}`,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Referer': 'https://www.69shuba.com/',
+      },
+      charset: 'GBK',
+    });
 
+    // Fallback: GET search request
     if (!res.success || !res.body || !res.body.includes('href=')) {
-      res = await smartFetch('https://www.69shuba.com/modules/article/search.php', {
-        method: 'POST',
-        body: `searchkey=${gbkQuery}&searchtype=all`,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://www.69shuba.com/',
-        },
-        charset: 'GBK',
-      });
+      const searchUrl = `https://www.69shuba.com/modules/article/search.php?searchkey=${gbkQuery}&searchtype=all`;
+      res = await smartFetch(searchUrl, { charset: 'GBK' });
     }
 
     if (!res.success || !res.body) return { items: [], hasNext: false };
