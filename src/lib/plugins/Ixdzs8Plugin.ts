@@ -216,7 +216,14 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
   }
 
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    const res = await smartFetch(chapterUrl);
+    let res = await smartFetch(chapterUrl, { timeout: 20000 });
+    
+    // Retry once with delay if first attempt fails or returns empty
+    if (!res.success || !res.body) {
+      await new Promise(r => setTimeout(r, 1500));
+      res = await smartFetch(chapterUrl, { timeout: 20000 });
+    }
+
     if (!res.success || !res.body) {
       return { contentHtml: '<p>Failed to retrieve chapter content.</p>', rawText: '' };
     }
@@ -224,15 +231,29 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     const $ = cheerio.load(res.body);
     const title = $('h1.chapter-title, h1').first().text().trim();
 
-    $('.content script, .read_content script, .p_text script, style').remove();
-    const contentEl = $('.content, .read_content, .p_text, #content').first();
+    // Remove ads, scripts, and noise
+    $('.content script, .read_content script, .p_text script, style, ins, .ad, .gadBlock').remove();
+    
+    // Try multiple content selectors — ixdzs8 may use different ones
+    const contentEl = $('.content, .read_content, .p_text, #content, #chaptercontent, .chapter-content, .txtnav').first();
 
     if (!contentEl.length) {
-      return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
+      // Last resort: try to find any element with substantial text
+      const bodyText = $('body').text().trim();
+      if (bodyText.length < 100) {
+        return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
+      }
+      const lines = bodyText.split(/\n+/).map(l => l.trim()).filter(l => l.length > 5);
+      const contentHtml = lines.map(line => `<p>${line}</p>`).join('');
+      return { title, contentHtml, rawText: lines.join('\n\n') };
     }
 
     const raw = contentEl.html() || '';
     const lines = raw.split(/<br\s*\/?>|\n+/).map((l) => cheerio.load(l).text().trim()).filter(Boolean);
+
+    if (lines.length === 0) {
+      return { title, contentHtml: '<p>Chapter text was empty after parsing.</p>', rawText: '' };
+    }
 
     const contentHtml = lines.map((line) => `<p>${line}</p>`).join('');
     const rawText = lines.join('\n\n');

@@ -53,13 +53,23 @@ export async function GET(req: NextRequest) {
     // Translate novel title, author, and summary into English
     const translatedDetail = await translateNovelDetail(detail);
 
-    // Optionally translate chapter titles if chapter count <= 100 for fast response
+    // Translate ALL chapter titles in batches of 200
     if (translatedDetail.chapters && translatedDetail.chapters.length > 0) {
-      const chapterTitles = translatedDetail.chapters.slice(0, 100).map((c) => c.title);
-      const translatedChTitles = await translateBatchTexts(chapterTitles);
-      translatedDetail.chapters = translatedDetail.chapters.map((c, i) => ({
+      const BATCH_SIZE = 200;
+      const allChapters = translatedDetail.chapters;
+      const translatedTitles: string[] = new Array(allChapters.length);
+
+      for (let i = 0; i < allChapters.length; i += BATCH_SIZE) {
+        const batch = allChapters.slice(i, i + BATCH_SIZE).map((c) => c.title);
+        const translatedBatch = await translateBatchTexts(batch);
+        for (let j = 0; j < translatedBatch.length; j++) {
+          translatedTitles[i + j] = translatedBatch[j] || allChapters[i + j].title;
+        }
+      }
+
+      translatedDetail.chapters = allChapters.map((c, i) => ({
         ...c,
-        title: translatedChTitles[i] || c.title,
+        title: translatedTitles[i] || c.title,
         originalTitle: c.title,
       }));
     }

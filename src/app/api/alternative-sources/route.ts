@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pluginRegistry } from '@/lib/plugins/plugin-registry';
+import { translateBatchTexts } from '@/lib/translator';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -18,6 +19,17 @@ export async function GET(req: NextRequest) {
       chineseTitle,
       excludeSource
     );
+
+    // Translate all match titles from Chinese to English
+    const allMatches = alternativeSources.flatMap((s) => s.matches);
+    if (allMatches.length > 0) {
+      const titles = allMatches.map((m) => m.title);
+      const translatedTitles = await translateBatchTexts(titles);
+      allMatches.forEach((m, i) => {
+        m.chineseTitle = titles[i]; // preserve original Chinese title
+        m.title = translatedTitles[i] || titles[i]; // set English translated title
+      });
+    }
 
     return NextResponse.json({
       success: true,

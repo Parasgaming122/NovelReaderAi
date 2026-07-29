@@ -67,6 +67,15 @@ export async function GET(req: NextRequest) {
       catalogs: translatedMultiCatalog,
     };
 
+    // Sort: sources with items first, empty sources last
+    multiResponseData.catalogs.sort((a, b) => {
+      const aCount = a.items ? a.items.length : 0;
+      const bCount = b.items ? b.items.length : 0;
+      if (aCount > 0 && bCount === 0) return -1;
+      if (aCount === 0 && bCount > 0) return 1;
+      return 0;
+    });
+
     catalogCacheMap.set(multiCacheKey, { data: multiResponseData, timestamp: Date.now() });
 
     return NextResponse.json(multiResponseData);

@@ -59,11 +59,20 @@ export default function NovelDetailView({
   }, [novel.id]);
 
   const handleToggleFavourite = () => {
+    // Build enriched novel object with latest data from state + API
+    const enrichedNovel: NovelItem = {
+      ...novel,
+      title: novel.title, // preserve the translated title from prop
+      chineseTitle: chineseTitle || novel.chineseTitle,
+      author: author || novel.author,
+      summary: summary || novel.summary,
+      cover: cover || novel.cover,
+    };
     if (favourited) {
       removeFavourite(novel.id);
       setFavourited(false);
     } else {
-      addFavourite(novel);
+      addFavourite(enrichedNovel);
       setFavourited(true);
     }
   };

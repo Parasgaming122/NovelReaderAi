@@ -285,7 +285,7 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
         </div>
 
         {/* Summary bar */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {(() => {
             const cfCounts = { none: 0, partial: 0, full: 0, blocked: 0 };
             pluginSettings.forEach((p) => {
@@ -344,7 +344,7 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
         </div>
 
         {/* Plugin list — scrollable */}
-        <div style={{ maxHeight: 720, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ maxHeight: 520, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, scrollbarWidth: 'thin', scrollbarColor: 'var(--text-3) transparent' }}>
           {sourcesLoading ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-3)', fontSize: 14 }}>
               <RefreshCw size={20} className="spin" style={{ display: 'inline-block', marginBottom: 10 }} />
@@ -379,16 +379,16 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
                   <div
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
+                      alignItems: 'flex-start',
                       justifyContent: 'space-between',
-                      padding: '12px 16px',
+                      padding: '14px 16px',
                       gap: 12,
                       cursor: availableMethods.length > 0 ? 'pointer' : 'default',
                     }}
                     onClick={() => availableMethods.length > 0 && toggleExpanded(item.id)}
                   >
                     {/* Left: priority + info */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 0, paddingTop: 2 }}>
                       {/* Priority badge */}
                       <div
                         style={{
@@ -404,19 +404,11 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
 
                       {/* Name + badges */}
                       <div style={{ minWidth: 0, flex: 1 }}>
+                        {/* Line 1: Name + CF badge + ON/OFF */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
                             {name}
                           </h4>
-                          <span
-                            style={{
-                              fontSize: 10, color: 'var(--text-3)', fontWeight: 500,
-                              backgroundColor: 'var(--surface-3)', padding: '2px 8px', borderRadius: 6,
-                              fontFamily: "'Space Grotesk', monospace",
-                            }}
-                          >
-                            {item.id}
-                          </span>
                           <span
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -429,8 +421,20 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
                           <span className={`status-pill ${item.enabled ? 'status-blue' : 'status-neutral'}`} style={{ fontSize: 9.5 }}>
                             {item.enabled ? 'ON' : 'OFF'}
                           </span>
+                        </div>
+                        {/* Line 2: ID + bypass methods (muted) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                          <span
+                            style={{
+                              fontSize: 10, color: 'var(--text-3)', fontWeight: 500,
+                              backgroundColor: 'var(--surface-3)', padding: '2px 8px', borderRadius: 6,
+                              fontFamily: "'Space Grotesk', monospace",
+                            }}
+                          >
+                            {item.id}
+                          </span>
                           {availableMethods.length > 0 && (
-                            <span style={{ fontSize: 10.5, color: 'var(--text-3)' }}>
+                            <span style={{ fontSize: 10, color: 'var(--text-3)', opacity: 0.7 }}>
                               {item.bypassMethods.length > 0
                                 ? item.bypassMethods.map((m) => BYPASS_METHOD_COLORS[m]?.label || m).join(', ')
                                 : 'No bypass set'}
@@ -449,7 +453,7 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
 
                     {/* Right: actions */}
                     <div
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, alignSelf: 'flex-start', marginLeft: 4, paddingTop: 2 }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div style={{ display: 'flex', gap: 2 }}>
@@ -508,12 +512,12 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
                   {isExpanded && availableMethods.length > 0 && (
                     <div
                       style={{
-                        padding: '0 16px 14px 16px',
+                        padding: '14px 16px 16px 16px',
                         borderTop: '1px solid var(--border)',
                         backgroundColor: 'var(--surface-2)',
                       }}
                     >
-                      <div style={{ paddingTop: 12 }}>
+                      <div style={{ paddingTop: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>
                             Bypass Methods
