@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import { smartFetch, encodeGBKComponent } from '@/lib/bypasser';
+import { browserFetch } from '@/lib/browser-service';
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
-import { heuristicParseBooks } from './helpers';
 
 export class Shuba69Plugin implements NovelSourcePlugin {
   public info: PluginSourceInfo = {
@@ -9,11 +9,13 @@ export class Shuba69Plugin implements NovelSourcePlugin {
     name: '69shuba (69書吧)',
     baseUrl: 'https://www.69shuba.com/',
     language: 'zh',
-    version: '3.1.0',
+    version: '4.0.0',
     icon: 'https://www.69shuba.com/favicon.ico',
     hasSearch: true,
     charset: 'GBK',
-    description: 'Extensive web novel database with high speed updating and comprehensive web catalog.',
+    description: 'Extensive web novel database. May be blocked by Cloudflare — uses browser fallback.',
+    blocked: true,
+    blockedReason: '403 Forbidden — Cloudflare anti-bot protection',
   };
 
   private absUrl(href: string): string {
@@ -26,10 +28,15 @@ export class Shuba69Plugin implements NovelSourcePlugin {
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
     const url = `https://www.69shuba.com/novels/monthvisit_0_0_${page}.htm`;
-    const res = await smartFetch(url, { charset: 'GBK' });
-    if (!res.success || !res.body) return { items: [], hasNext: false };
+    const sfRes = await smartFetch(url, { charset: 'GBK' });
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(url);
+      if (!br.success || !br.html) return { items: [], hasNext: false };
+      html = br.html;
+    }
 
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
     $('ul#article_list_content li, .newbox ul li').each((_, el) => {
@@ -58,35 +65,30 @@ export class Shuba69Plugin implements NovelSourcePlugin {
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
     const gbkQuery = encodeGBKComponent(query);
-    
-    // Primary: POST search request on 69shuba with GBK body
-    let res = await smartFetch('https://www.69shuba.com/modules/article/search.php', {
+
+    const sfRes = await smartFetch('https://www.69shuba.com/modules/article/search.php', {
       method: 'POST',
       body: `searchkey=${gbkQuery}&searchtype=all&page=${page}`,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Referer': 'https://www.69shuba.com/',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://www.69shuba.com/', 'Origin': 'https://www.69shuba.com' },
       charset: 'GBK',
     });
-
-    // Fallback: GET search request
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      const searchUrl = `https://www.69shuba.com/modules/article/search.php?searchkey=${gbkQuery}&searchtype=all`;
-      res = await smartFetch(searchUrl, { charset: 'GBK' });
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch('https://www.69shuba.com/modules/article/search.php');
+      if (!br.success || !br.html) return { items: [], hasNext: false };
+      html = br.html;
     }
 
-    if (!res.success || !res.body) return { items: [], hasNext: false };
-
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
-    $('div.newbox ul li, ul#article_list_content li, .newnav li, .box ul li').each((_, el) => {
-      const titleEl = $(el).find('h3 a, div.newnav h3 a, a.title').first();
+    // Strict selector: div.newbox ul li (matches Lua reference)
+    $('div.newbox ul li').each((_, el) => {
+      const titleEl = $(el).find('h3 a:last-child').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
       const cover = $(el).find('a.imgbox img').attr('data-src') || $(el).find('img').attr('src');
-      const author = $(el).find('.label, .author, .labelbox').text().trim();
+      const author = $(el).find('.label, .author').text().trim();
 
       if (title && href) {
         items.push({
@@ -102,12 +104,7 @@ export class Shuba69Plugin implements NovelSourcePlugin {
       }
     });
 
-    if (items.length === 0) {
-      const targetUrl = res.url || 'https://www.69shuba.com/';
-      const parsed = heuristicParseBooks(res.body, targetUrl, this.info.id, this.info.name);
-      return { items: parsed, hasNext: false };
-    }
-
+    // NO heuristic fallback — return exactly what the search page contains
     return { items, hasNext: false };
   }
 
@@ -118,10 +115,15 @@ export class Shuba69Plugin implements NovelSourcePlugin {
       catalogUrl = `https://www.69shuba.com/${bookId}/`;
     }
 
-    const res = await smartFetch(catalogUrl, { charset: 'GBK' });
-    if (!res.success || !res.body) return null;
+    const sfRes = await smartFetch(catalogUrl, { charset: 'GBK' });
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(catalogUrl);
+      if (!br.success || !br.html) return null;
+      html = br.html;
+    }
 
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const title = $('div.booknav2 h1 a, h1').first().text().trim();
     const cover = $('div.bookimg2 img, .cover img').attr('src');
     const author = $('div.booknav2 .author, .booknav2 p').first().text().replace(/作者[：:]/, '').trim();
@@ -129,8 +131,7 @@ export class Shuba69Plugin implements NovelSourcePlugin {
 
     const chapters: PluginChapterItem[] = [];
     const elements = $('div#catalog ul li a');
-    
-    // 69shuba chapter list is often descending, reverse if needed
+
     elements.each((_, el) => {
       const chTitle = $(el).text().trim();
       const chHref = $(el).attr('href');
@@ -159,12 +160,17 @@ export class Shuba69Plugin implements NovelSourcePlugin {
   }
 
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    const res = await smartFetch(chapterUrl, { charset: 'GBK' });
-    if (!res.success || !res.body) {
-      return { contentHtml: '<p>Failed to retrieve chapter from 69shuba.</p>', rawText: '' };
+    const sfRes = await smartFetch(chapterUrl, { charset: 'GBK' });
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(chapterUrl);
+      if (!br.success || !br.html) {
+        return { contentHtml: '<p>Failed to retrieve chapter from 69shuba.</p>', rawText: '' };
+      }
+      html = br.html;
     }
 
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const title = $('h1.hide-720, h1').first().text().trim();
 
     $('h1, .txtinfo, .bottom-ad, .bottem2, script, style, .visible-xs').remove();

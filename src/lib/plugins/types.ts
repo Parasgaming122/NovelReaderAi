@@ -8,6 +8,10 @@ export interface PluginSourceInfo {
   hasSearch: boolean;
   charset?: string;
   description?: string;
+  /** Whether the source is blocked by Cloudflare/anti-bot and should be disabled by default */
+  blocked?: boolean;
+  /** Block reason (e.g. "403 Forbidden", "Timeout", "Turnstile") */
+  blockedReason?: string;
 }
 
 export interface PluginNovelItem {

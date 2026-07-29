@@ -1,57 +1,72 @@
 import iconv from 'iconv-lite';
 
 /**
- * 4-Tier Cloudflare Bypasser Engine (inspired by trawl / Qwen implementation)
+ * 5-Tier Cloudflare Bypasser Engine (Gen 6 — Streamlined)
+ *
+ * Tier 1: Direct fetch with Chrome browser emulation
+ * Tier 2: Cached session/cookie replay
+ * Tier 3: Retry with UA rotation + backoff
+ * Tier 4: Failed — return error
+ *
+ * Key fixes from Gen 5:
+ * - Removed manual Accept-Encoding (undici handles it)
+ * - Removed compress:false (caused silent decompression failures)
+ * - Fixed isChallenge to avoid false positives from CDN URLs
  */
 
 interface SessionCacheEntry {
   cookies: string[];
-  headers: Record<string, string>;
   expiresAt: number;
 }
 
 const sessionCache = new Map<string, SessionCacheEntry>();
 
+// Per-domain rate limiter
+const lastRequestTime = new Map<string, number>();
+const MIN_DOMAIN_DELAY_MS = 600;
+
 const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 ];
 
-function getRandomUserAgent(): string {
+const SEC_CH_UA = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+
+function getRandomUA(): string {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
 function extractDomain(urlStr: string): string {
-  try {
-    const parsed = new URL(urlStr);
-    return parsed.hostname;
-  } catch {
-    return 'default';
-  }
+  try { return new URL(urlStr).hostname; }
+  catch { return 'default'; }
 }
 
+/**
+ * Detect Cloudflare challenge pages.
+ * Uses STRICT patterns to avoid false positives from CDN script references.
+ */
 function isChallenge(body: string, status: number): boolean {
   if (status === 403 || status === 503 || status === 429) return true;
-  if (!body) return false;
-  
-  const challengeKeywords = [
-    'Just a moment...',
+  if (!body || body.length < 200) return false;
+
+  // Strict Cloudflare challenge patterns (NOT just "Cloudflare" in a CDN URL)
+  const strictPatterns = [
+    '<title>Just a moment...',
     'cf-browser-verification',
-    'ray_id',
-    'Turnstile',
+    'challenge-platform',
+    'challenge-running',
+    '_cf_chl',
+    'cdn-cgi/challenge',
+    'challenges.cloudflare.com',
+    'hcaptcha.com',
     'g-recaptcha',
-    'hcaptcha',
-    '安全验证',
-    '人机验证',
-    '访问频繁',
-    '请求过于频繁',
-    'Cloudflare',
+    'turnstile',
   ];
 
-  return challengeKeywords.some((kw) => body.includes(kw));
+  return strictPatterns.some(p => body.toLowerCase().includes(p.toLowerCase()));
 }
 
 export interface BypassRequestOptions {
@@ -68,8 +83,7 @@ export function encodeGBKComponent(str: string): string {
     const buf = iconv.encode(str, 'gbk');
     let result = '';
     for (let i = 0; i < buf.length; i++) {
-      const byte = buf[i];
-      result += '%' + byte.toString(16).toUpperCase().padStart(2, '0');
+      result += '%' + buf[i].toString(16).toUpperCase().padStart(2, '0');
     }
     return result;
   } catch {
@@ -95,37 +109,53 @@ export const bypasserStats = {
   tier4Count: 0,
 };
 
+function enforceRateLimit(domain: string): Promise<void> {
+  const lastTime = lastRequestTime.get(domain) || 0;
+  const elapsed = Date.now() - lastTime;
+  if (elapsed < MIN_DOMAIN_DELAY_MS) {
+    return new Promise(r => setTimeout(r, MIN_DOMAIN_DELAY_MS - elapsed));
+  }
+  lastRequestTime.set(domain, Date.now());
+  return Promise.resolve();
+}
+
 export async function smartFetch(
   url: string,
   options: BypassRequestOptions = {}
 ): Promise<BypassResponse> {
   bypasserStats.totalCalls++;
   const domain = extractDomain(url);
-  const maxRetries = options.maxRetries ?? 3;
+  const maxRetries = options.maxRetries ?? 2;
   const timeout = options.timeout ?? 15000;
-  const charset = options.charset || 'UTF-8';
+  const charset = (options.charset || 'UTF-8').toUpperCase();
+  const isGBK = charset.includes('GBK') || charset.includes('GB2312');
 
-  // TIER 2 Check: Cached Session Replay
+  await enforceRateLimit(domain);
+
   const cachedSession = sessionCache.get(domain);
   let cookiesToUse = cachedSession && cachedSession.expiresAt > Date.now() ? cachedSession.cookies : [];
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const tier = attempt === 1 && cachedSession ? 2 : attempt === 1 ? 1 : 3;
-    const ua = getRandomUserAgent();
+    const ua = getRandomUA();
 
     const headers: Record<string, string> = {
       'User-Agent': ua,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
       'Sec-Fetch-Dest': 'document',
       'Sec-Fetch-Mode': 'navigate',
       'Sec-Fetch-Site': 'none',
       'Sec-Fetch-User': '?1',
       'Upgrade-Insecure-Requests': '1',
-      'Cache-Control': 'max-age=0',
+      'Cache-Control': 'no-cache',
+      'sec-ch-ua': SEC_CH_UA,
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
       ...options.headers,
     };
+
+    // Don't set Accept-Encoding — let undici handle compression automatically
 
     if (cookiesToUse.length > 0) {
       headers['Cookie'] = cookiesToUse.join('; ');
@@ -163,20 +193,20 @@ export async function smartFetch(
         cookiesToUse = Array.from(new Set([...cookiesToUse, ...resCookies]));
         sessionCache.set(domain, {
           cookies: cookiesToUse,
-          headers,
-          expiresAt: Date.now() + 3600 * 1000, // 1 hour TTL
+          expiresAt: Date.now() + 3600 * 1000,
         });
       }
 
-      // Convert buffer according to charset
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      let body = '';
-
-      if (charset.toUpperCase().includes('GBK') || charset.toUpperCase().includes('GB2312')) {
+      // Decode response body
+      let body: string;
+      if (isGBK) {
+        // GBK: need raw bytes → iconv decode
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
         body = iconv.decode(buffer, 'gbk');
       } else {
-        body = buffer.toString('utf-8');
+        // UTF-8: let undici auto-decompress and decode
+        body = await res.text();
       }
 
       if (!isChallenge(body, res.status) && res.status >= 200 && res.status < 400) {
@@ -193,12 +223,11 @@ export async function smartFetch(
         };
       }
 
-      // If blocked, invalidate session cache for domain
+      // Blocked — invalidate session cache
       sessionCache.delete(domain);
 
-      // Backoff delay before retry
       if (attempt < maxRetries) {
-        await new Promise((r) => setTimeout(r, attempt * 1200));
+        await new Promise(r => setTimeout(r, attempt * 1500));
       }
     } catch (err: any) {
       if (attempt === maxRetries) {
@@ -212,7 +241,7 @@ export async function smartFetch(
           error: err.message || 'Fetch error',
         };
       }
-      await new Promise((r) => setTimeout(r, attempt * 1000));
+      await new Promise(r => setTimeout(r, attempt * 1000));
     }
   }
 
@@ -223,6 +252,6 @@ export async function smartFetch(
     body: '',
     url,
     tierUsed: 4,
-    error: 'Exhausted retries on Cloudflare protected resource',
+    error: 'Exhausted retries',
   };
 }

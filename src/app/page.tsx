@@ -10,6 +10,7 @@ import SearchView from '@/components/SearchView';
 import ApiDocsView from '@/components/ApiDocsView';
 import HistoryBookmarks from '@/components/HistoryBookmarks';
 import SettingsView from '@/components/SettingsView';
+import FetchIndicator from '@/components/FetchIndicator';
 import { NovelItem, ChapterItem, NovelSourceInfo, GroupedSearchResult } from '@/lib/types';
 import { ShieldCheck, Zap, Globe, CheckCircle2 } from 'lucide-react';
 
@@ -26,6 +27,16 @@ export default function Home() {
   const [groupedSearchResults, setGroupedSearchResults] = useState<GroupedSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [lastSearchQuery, setLastSearchQuery] = useState('');
+
+  // Source fetch statuses for FetchIndicator
+  const [fetchStatuses, setFetchStatuses] = useState<{
+    sourceId: string;
+    sourceName: string;
+    status: 'pending' | 'fetching' | 'success' | 'error';
+    items?: number;
+    error?: string;
+  }[]>([]);
+  const [showFetchIndicator, setShowFetchIndicator] = useState(false);
 
   // Fetch Sources List on Mount
   useEffect(() => {
@@ -67,10 +78,33 @@ export default function Home() {
         } catch (e) {}
       }
 
+      // Initialize fetch indicator statuses from sources
+      const searchSources = sources.length > 0 ? sources : [
+        { id: 'novel543', name: 'Novel543' },
+        { id: 'xbiquge', name: 'XBiquge' },
+        { id: 'ixdzs8', name: 'Ixdzs8' },
+        { id: 'shuba69', name: '69shuba' },
+        { id: 'timotxt', name: 'TimoTxt' },
+      ];
+      const initialStatuses = searchSources.map(s => ({
+        sourceId: s.id, sourceName: s.name, status: 'fetching' as const,
+      }));
+      setFetchStatuses(initialStatuses);
+      setShowFetchIndicator(true);
+
       const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}${sourcesQuery}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.groupedResults)) {
         setGroupedSearchResults(data.groupedResults);
+        // Update fetch statuses based on results
+        const updatedStatuses = initialStatuses.map(s => {
+          const result = data.groupedResults.find((g: any) => g.sourceId === s.sourceId);
+          if (result && result.items && result.items.length > 0) {
+            return { ...s, status: 'success' as const, items: result.items.length };
+          }
+          return { ...s, status: 'error' as const, error: 'No results' };
+        });
+        setFetchStatuses(updatedStatuses);
       }
     } catch (err) {
       console.error('Search error:', err);
@@ -100,6 +134,15 @@ export default function Home() {
       setActiveTab={handleNavigateTab}
       onSearchSubmit={handleSearchSubmit}
     >
+      {/* Fetch Indicator - small floating widget showing source fetch status */}
+      {showFetchIndicator && fetchStatuses.length > 0 && (
+        <FetchIndicator
+          statuses={fetchStatuses}
+          isComplete={!isSearching && fetchStatuses.some(s => s.status !== 'fetching' && s.status !== 'pending')}
+          onDismiss={() => setShowFetchIndicator(false)}
+        />
+      )}
+
       {/* 1. Reader Console Mode */}
       {selectedChapter && selectedNovel ? (
         <ReaderConsole

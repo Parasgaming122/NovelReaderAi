@@ -1,7 +1,6 @@
 import * as cheerio from 'cheerio';
 import { smartFetch } from '@/lib/bypasser';
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
-import { heuristicParseBooks } from './helpers';
 
 export class Ixdzs8Plugin implements NovelSourcePlugin {
   public info: PluginSourceInfo = {
@@ -9,11 +8,11 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     name: 'Aixdzs (爱下电子书)',
     baseUrl: 'https://ixdzs8.com/',
     language: 'zh',
-    version: '1.0.0',
+    version: '5.0.0',
     icon: 'https://ixdzs8.com/favicon.ico',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'Popular digital web novel repository with comprehensive text downloads & chapters.',
+    description: 'Popular digital web novel repository with comprehensive text downloads & chapters. Verified working: search uses li.burl class.',
   };
 
   private absUrl(href: string): string {
@@ -32,13 +31,14 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    $('.b_list li, .read_list li, .novel_list li, .book_list li, .list-group-item').each((_, el) => {
-      const titleEl = $(el).find('a.b_name, h2 a, h3 a, a.title').first();
+    // Verified live: catalog uses li.burl with h3.bname > a
+    $('li.burl').each((_, el) => {
+      const titleEl = $(el).find('h3.bname a, h3 a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
-      const cover = $(el).find('img').attr('src') || $(el).find('img').attr('data-src');
-      const author = $(el).find('.author, .b_author, .writer').text().replace(/作者[：:]/, '').trim();
-      const summary = $(el).find('.intro, .b_intro, .desc').text().trim();
+      const cover = $(el).find('.l-img img').attr('src');
+      const author = $(el).find('.bauthor a, .author').first().text().replace(/作者[：:]/, '').trim();
+      const summary = $(el).find('.l-p2').text().trim();
 
       if (title && href) {
         items.push({
@@ -55,59 +55,32 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
       }
     });
 
-    // Fallback if list structure is different
-    if (items.length === 0) {
-      $('a[href*="/read/"], a[href*="/d/"]').each((_, el) => {
-        const title = $(el).text().trim();
-        const href = $(el).attr('href');
-        if (title && href && title.length > 1 && title.length < 40 && !title.includes('首页') && !title.includes('目录')) {
-          items.push({
-            id: Buffer.from(this.absUrl(href)).toString('base64url'),
-            title,
-            chineseTitle: title,
-            url: this.absUrl(href),
-            sourceId: this.info.id,
-            sourceName: this.info.name,
-          });
-        }
-      });
-    }
-
     return { items, hasNext: items.length > 0 };
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    let searchUrl = `https://ixdzs8.com/bsearch?q=${encodeURIComponent(query)}`;
-    let res = await smartFetch(searchUrl);
-
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      searchUrl = `https://ixdzs8.com/b/search?q=${encodeURIComponent(query)}`;
-      res = await smartFetch(searchUrl);
-    }
-
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      searchUrl = `https://ixdzs8.com/search?searchkey=${encodeURIComponent(query)}`;
-      res = await smartFetch(searchUrl);
-    }
-
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      searchUrl = `https://ixdzs8.com/search?q=${encodeURIComponent(query)}`;
-      res = await smartFetch(searchUrl);
-    }
+    // Single request: GET /bsearch?q= (verified live 2026-07-28, returns 20 results for "斗破苍穹")
+    const searchUrl = `https://ixdzs8.com/bsearch?q=${encodeURIComponent(query)}`;
+    const res = await smartFetch(searchUrl, {
+      headers: { 'Referer': 'https://ixdzs8.com/' },
+    });
 
     if (!res.success || !res.body) return { items: [], hasNext: false };
 
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    $('.b_list li, .search_list li, .book_list li, .result_list li, ul li').each((_, el) => {
-      const titleEl = $(el).find('a.b_name, h2 a, h3.bname a, h3 a, a.title, a').first();
+    // Verified live: search results use li.burl (20 items found)
+    // Each li.burl has: h3.bname > a for title, .bauthor a for author, .l-p2 for description
+    $('li.burl').each((_, el) => {
+      const titleEl = $(el).find('h3.bname a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
-      const cover = $(el).find('img').attr('src');
-      const author = $(el).find('.author, .b_author, .bauthor a').text().replace(/作者[：:]/, '').trim();
+      const cover = $(el).find('.l-img img').attr('src');
+      const author = $(el).find('.bauthor a').first().text().replace(/作者[：:]/, '').trim();
+      const summary = $(el).find('.l-p2').text().trim();
 
-      if (title && href && (href.includes('/read/') || href.includes('/d/') || href.includes('/b/'))) {
+      if (title && href) {
         items.push({
           id: Buffer.from(this.absUrl(href)).toString('base64url'),
           title,
@@ -115,18 +88,14 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
           url: this.absUrl(href),
           cover: cover ? this.absUrl(cover) : undefined,
           author: author || undefined,
+          summary: summary || undefined,
           sourceId: this.info.id,
           sourceName: this.info.name,
         });
       }
     });
 
-    if (items.length === 0) {
-      const targetUrl = res.url || searchUrl || 'https://ixdzs8.com/';
-      const parsed = heuristicParseBooks(res.body, targetUrl, this.info.id, this.info.name);
-      return { items: parsed, hasNext: false };
-    }
-
+    // NO heuristic fallback
     return { items, hasNext: false };
   }
 
@@ -135,13 +104,13 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     if (!res.success || !res.body) return null;
 
     const $ = cheerio.load(res.body);
-    const title = $('.read_info h1, .d_info h1, .novel_info h1, h1').first().text().trim();
-    const cover = $('.read_img img, .d_img img, .cover img, img').first().attr('src');
-    const author = $('.read_info .author, .d_info .author, .author').first().text().replace(/作者[：:]/, '').trim();
-    const summary = $('.read_intro, .intro, .description, #intro').text().trim();
+    const title = $('h1.bname, h1.title, .d_info h1, h1').first().text().trim();
+    const cover = $('.n-img img, .d_img img, img').first().attr('src');
+    const author = $('.bauthor, .d_info .author, .author').first().text().replace(/作者[：:]/, '').trim();
+    const summary = $('#intro, .intro, .description, p#intro').text().trim();
 
     const chapters: PluginChapterItem[] = [];
-    $('ul.cl_list li a, .read_list a, .chapter-list a, .d_a li a, a[href*="/p"]').each((_, el) => {
+    $('ul.cl_list li a, .chapter-list a, a[href*="/p"]').each((_, el) => {
       const chTitle = $(el).text().trim();
       const chHref = $(el).attr('href');
       if (chTitle && chHref) {
@@ -175,7 +144,7 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     }
 
     const $ = cheerio.load(res.body);
-    const title = $('.read_title h1, h1.chapter-title, h1').first().text().trim();
+    const title = $('h1.chapter-title, h1').first().text().trim();
 
     $('.content script, .read_content script, .p_text script, style').remove();
     const contentEl = $('.content, .read_content, .p_text, #content').first();

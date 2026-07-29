@@ -1,0 +1,210 @@
+import * as cheerio from 'cheerio';
+import { smartFetch } from '@/lib/bypasser';
+import { scraperFetch, isScraperAvailable } from '@/lib/scraper-client';
+import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
+
+const BASE = 'https://big5.quanben5.com';
+const STATIC_CHARS = 'PXhw7UT1B0a9kQDKZsjIASmOezxYG4CHo5Jyfg2b8FLpEvRr3WtVnlqMidu6cN';
+
+export class Quanben5Plugin implements NovelSourcePlugin {
+  public info: PluginSourceInfo = {
+    id: 'quanben5',
+    name: '全本5 (Quanben5)',
+    baseUrl: BASE + '/',
+    language: 'zh',
+    version: '1.0.0',
+    icon: 'https://raw.githubusercontent.com/Parasgaming122/external-sources/main/icons/quanben5.png',
+    hasSearch: true,
+    charset: 'UTF-8',
+    description: 'Quanben5 novel site with JSONP search API.',
+  };
+
+  private absUrl(href: string | undefined | null): string {
+    if (!href) return '';
+    if (href.startsWith('http')) return href;
+    if (href.startsWith('//')) return 'https:' + href;
+    if (href.startsWith('/')) return BASE + href;
+    return BASE + '/' + href;
+  }
+
+  private customBase64Encode(str: string): string {
+    return str.split('').map(ch => {
+      const idx = STATIC_CHARS.indexOf(ch);
+      if (idx !== -1) return STATIC_CHARS[(idx + 3) % 62];
+      return ch;
+    }).map(ch => `P${ch}P`).join('');
+  }
+
+  private async fetchPage(url: string, retries = 2): Promise<{ html: string; success: boolean }> {
+    const useScraper = await isScraperAvailable();
+    if (useScraper) {
+      for (let i = 0; i < retries; i++) {
+        const result = await scraperFetch(url, { timeout: 45, maxRetries: 1 });
+        if (result.success && result.html && result.html.length > 500) {
+          return { html: result.html, success: true };
+        }
+        if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    const res = await smartFetch(url);
+    if (res.success && res.body) return { html: res.body, success: true };
+    return { html: '', success: false };
+  }
+
+  private cleanText(text: string): string {
+    return text
+      .replace(/https?:\/\/[^\s]+/g, '')
+      .replace(/www\.[^\s]+/g, '')
+      .replace(/quanben5\.com[^\s]*/gi, '')
+      .replace(/[\n]{3,}/g, '\n\n')
+      .trim();
+  }
+
+  async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
+    const url = page === 1 ? `${BASE}/category/1.html` : `${BASE}/category/1_${page}.html`;
+    const { html, success } = await this.fetchPage(url);
+    if (!success) return { items: [], hasNext: false };
+
+    const $ = cheerio.load(html);
+    const items: PluginNovelItem[] = [];
+
+    $('.pic_txt_list').each((_, el) => {
+      const titleEl = $(el).find('h3 a').first();
+      const title = titleEl.text().trim();
+      const href = titleEl.attr('href');
+      const cover = $(el).find('.pic img').attr('src');
+
+      if (title && href) {
+        const fullUrl = this.absUrl(href);
+        items.push({
+          id: Buffer.from(fullUrl).toString('base64url'),
+          title,
+          chineseTitle: title,
+          url: fullUrl,
+          cover: cover ? this.absUrl(cover) : undefined,
+          sourceId: this.info.id,
+          sourceName: this.info.name,
+        });
+      }
+    });
+
+    return { items, hasNext: items.length > 0 };
+  }
+
+  async getCatalogSearch(query: string): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
+    const ts = Date.now();
+    const encoded = encodeURI(query);
+    const b = this.customBase64Encode(encoded);
+    const searchUrl = `${BASE}/?c=book&a=search.json&callback=search&t=${ts}&keywords=${encoded}&b=${b}`;
+
+    try {
+      const res = await smartFetch(searchUrl);
+      if (res.success && res.body) {
+        const jsonpMatch = res.body.match(/search\((.+)\)\s*;?\s*$/s);
+        if (jsonpMatch) {
+          const data = JSON.parse(jsonpMatch[1]);
+          const htmlContent = data?.content || '';
+          const $ = cheerio.load(htmlContent);
+          const items: PluginNovelItem[] = [];
+
+          $('.pic_txt_list, li').each((_, el) => {
+            const titleEl = $(el).find('h3 a, a').first();
+            const title = titleEl.text().trim();
+            const href = titleEl.attr('href');
+            const cover = $(el).find('.pic img, img').first().attr('src');
+
+            if (title && href) {
+              const fullUrl = this.absUrl(href);
+              items.push({
+                id: Buffer.from(fullUrl).toString('base64url'),
+                title,
+                chineseTitle: title,
+                url: fullUrl,
+                cover: cover ? this.absUrl(cover) : undefined,
+                sourceId: this.info.id,
+                sourceName: this.info.name,
+              });
+            }
+          });
+          return { items, hasNext: false };
+        }
+      }
+    } catch { /* ignore */ }
+
+    return { items: [], hasNext: false };
+  }
+
+  async getBookDetails(bookUrl: string): Promise<PluginNovelDetail | null> {
+    const { html, success } = await this.fetchPage(bookUrl);
+    if (!success) return null;
+
+    const $ = cheerio.load(html);
+    const title = $('span.name').first().text().trim();
+    if (!title) return null;
+
+    const cover = $('.box .pic img').first().attr('src');
+    const summary = $('.intro, .desc, .info').first().text().trim();
+
+    const chapters: PluginChapterItem[] = [];
+    $('.chapter-list a, #chapterlist a, dl dd a').each((_, el) => {
+      const chTitle = $(el).text().trim();
+      const chHref = $(el).attr('href');
+      if (chTitle && chHref) {
+        const fullUrl = this.absUrl(chHref);
+        chapters.push({
+          id: Buffer.from(fullUrl).toString('base64url'),
+          title: chTitle,
+          url: fullUrl,
+        });
+      }
+    });
+
+    return {
+      id: Buffer.from(bookUrl).toString('base64url'),
+      title,
+      chineseTitle: title,
+      url: bookUrl,
+      cover: cover ? this.absUrl(cover) : undefined,
+      summary: this.cleanText(summary),
+      sourceId: this.info.id,
+      sourceName: this.info.name,
+      chapters,
+    };
+  }
+
+  async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
+    const { html, success } = await this.fetchPage(chapterUrl);
+    if (!success) {
+      return { contentHtml: '<p>Failed to retrieve chapter content.</p>', rawText: '' };
+    }
+
+    const $ = cheerio.load(html);
+    const title = $('h1, .chapter-title').first().text().trim();
+
+    const contentEl = $('#content, .content').first();
+    if (!contentEl.length) {
+      return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
+    }
+
+    contentEl.find('script, ins, style, .ad').remove();
+
+    const paragraphs: string[] = [];
+    contentEl.find('p').each((_, el) => {
+      const t = $(el).text().trim();
+      if (t) paragraphs.push(this.cleanText(t));
+    });
+
+    if (paragraphs.length === 0) {
+      const text = contentEl.text().trim();
+      text.split(/\n+/).forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed) paragraphs.push(this.cleanText(trimmed));
+      });
+    }
+
+    const contentHtml = paragraphs.map(p => `<p>${p}</p>`).join('\n');
+    const rawText = paragraphs.join('\n\n');
+
+    return { title, contentHtml, rawText };
+  }
+}

@@ -1,7 +1,6 @@
 import * as cheerio from 'cheerio';
-import { smartFetch, encodeGBKComponent } from '@/lib/bypasser';
+import { smartFetch } from '@/lib/bypasser';
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
-import { heuristicParseBooks } from './helpers';
 
 export class XBiqugePlugin implements NovelSourcePlugin {
   public info: PluginSourceInfo = {
@@ -9,11 +8,11 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     name: 'XBiquge (新笔趣阁)',
     baseUrl: 'https://www.xbiquge.info/',
     language: 'zh',
-    version: '2.0.0',
+    version: '5.0.0',
     icon: 'https://www.xbiquge.info/favicon.ico',
     hasSearch: true,
-    charset: 'GBK',
-    description: 'High-speed Chinese web novel mirror provider with full chapter coverage.',
+    charset: 'UTF-8', // Verified live: UTF-8, NOT GBK
+    description: 'High-speed Chinese web novel mirror. Search endpoint updated from wss.php to search.php after old endpoint went 502.',
   };
 
   private absUrl(href: string): string {
@@ -25,27 +24,28 @@ export class XBiqugePlugin implements NovelSourcePlugin {
   }
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const url = page === 1 ? 'https://www.xbiquge.info/xquanben/' : `https://www.xbiquge.info/xquanben/${page}.html`;
-
-    const res = await smartFetch(url, { charset: 'GBK' });
+    // Homepage shows featured novels as <dl> elements
+    const url = page === 1 ? 'https://www.xbiquge.info/' : `https://www.xbiquge.info/xquanben/${page}.html`;
+    const res = await smartFetch(url);
     if (!res.success || !res.body) return { items: [], hasNext: false };
 
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    $('.novellist li, .result-list li, #content li, .box_con li').each((_, el) => {
-      const titleEl = $(el).find('a').first();
+    // Homepage/catalog uses <dl> elements (verified live: 12 <dl> items on homepage)
+    $('dl').each((_, el) => {
+      const titleEl = $(el).find('h3 a, dd a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
-      const author = $(el).find('a').eq(1).text().trim() || $(el).find('.s4, .s5').text().trim();
+      const cover = $(el).find('dt a img').attr('src');
 
-      if (title && href && (href.includes('/0_') || href.includes('/book/') || href.endsWith('/'))) {
+      if (title && href && href.startsWith('/') && !title.includes('首页') && title.length > 1) {
         items.push({
           id: Buffer.from(this.absUrl(href)).toString('base64url'),
           title,
           chineseTitle: title,
           url: this.absUrl(href),
-          author: author || undefined,
+          cover: cover ? this.absUrl(cover) : undefined,
           sourceId: this.info.id,
           sourceName: this.info.name,
         });
@@ -56,77 +56,52 @@ export class XBiqugePlugin implements NovelSourcePlugin {
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const gbkQuery = encodeGBKComponent(query);
-    
-    // Attempt 1: UTF-8 GET /search.php?q=
-    let searchUrl = `https://www.xbiquge.info/search.php?q=${encodeURIComponent(query)}`;
-    let res = await smartFetch(searchUrl);
-
-    // Attempt 2: POST form search on xbiquge.info
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      res = await smartFetch('https://www.xbiquge.info/modules/article/search.php', {
-        method: 'POST',
-        body: `searchkey=${gbkQuery}&searchtype=all`,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': 'https://www.xbiquge.info/',
-        },
-        charset: 'GBK',
-      });
-    }
-
-    // Attempt 3: GET search.php on xbiquge.info with GBK
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      res = await smartFetch(`https://www.xbiquge.info/search.php?q=${gbkQuery}`, {
-        charset: 'GBK',
-        headers: { 'Referer': 'https://www.xbiquge.info/' },
-      });
-    }
-
-    // Attempt 4: GET wss.php on xbiquge.info
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      res = await smartFetch(`https://www.xbiquge.info/modules/article/wss.php?keyword=${gbkQuery}`, {
-        charset: 'GBK',
-      });
-    }
+    // CORRECT endpoint (verified live 2026-07-28):
+    // GET /search.php?q={UTF8} — returns <dl> elements with search results
+    // OLD endpoint /modules/article/wss.php?keyword= is DEAD (502 Bad Gateway)
+    const searchUrl = `https://www.xbiquge.info/search.php?q=${encodeURIComponent(query)}`;
+    const res = await smartFetch(searchUrl, {
+      headers: { 'Referer': 'https://www.xbiquge.info/' },
+    });
 
     if (!res.success || !res.body) return { items: [], hasNext: false };
 
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    $('.result-list li, .novellist li, .result-item, #main li, table tr, .box_con li, #newscontent li, .grid tr, .result-game-item').each((_, el) => {
-      const titleEl = $(el).find('a:first-child, h2 a, .bookname a, td:first-child a, td.odd a, .result-game-item-title-link').first();
+    // Verified live: search results use <dl> elements
+    // Each <dl> contains: <dt><a href="..."><img></a></dt> and <dd><h3><a>TITLE</a></h3></dd>
+    $('dl').each((_, el) => {
+      const titleEl = $(el).find('dd h3 a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
-      const author = $(el).find('td:nth-child(3), .author, .s4, .s5, .result-game-item-info-tag span').text().trim();
-      const cover = $(el).find('img').attr('src');
+      const cover = $(el).find('dt a img').attr('src');
 
-      if (title && href && title.length > 0 && !title.includes('首页') && !title.includes('书架')) {
+      // Author is in dd.book_other > span (format: "作者：<span>NAME</span>")
+      const authorText = $(el).find('dd.book_other').first().text().trim();
+      const authorMatch = authorText.match(/作者[：:]?\s*(.+)/);
+      const author = authorMatch ? authorMatch[1].trim() : undefined;
+
+      if (title && href && href.startsWith('/') && title.length > 1 && !title.includes('搜索结果')) {
         items.push({
           id: Buffer.from(this.absUrl(href)).toString('base64url'),
           title,
           chineseTitle: title,
           url: this.absUrl(href),
           cover: cover ? this.absUrl(cover) : undefined,
-          author: author || undefined,
+          author,
           sourceId: this.info.id,
           sourceName: this.info.name,
         });
       }
     });
 
-    if (items.length === 0) {
-      const targetUrl = res.url || 'https://www.xbiquge.info/';
-      const parsed = heuristicParseBooks(res.body, targetUrl, this.info.id, this.info.name);
-      return { items: parsed, hasNext: false };
-    }
-
+    // NO heuristic fallback — return exactly what search results contain
     return { items, hasNext: false };
   }
 
   async getBookDetails(bookUrl: string): Promise<PluginNovelDetail | null> {
-    const res = await smartFetch(bookUrl, { charset: 'GBK' });
+    const res = await smartFetch(bookUrl);
     if (!res.success || !res.body) return null;
 
     const $ = cheerio.load(res.body);
@@ -164,7 +139,7 @@ export class XBiqugePlugin implements NovelSourcePlugin {
   }
 
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    const res = await smartFetch(chapterUrl, { charset: 'GBK' });
+    const res = await smartFetch(chapterUrl);
     if (!res.success || !res.body) {
       return { contentHtml: '<p>Failed to retrieve chapter content.</p>', rawText: '' };
     }

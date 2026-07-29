@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import { smartFetch } from '@/lib/bypasser';
+import { browserFetch } from '@/lib/browser-service';
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
-import { heuristicParseBooks } from './helpers';
 
 export class TimoTxtPlugin implements NovelSourcePlugin {
   public info: PluginSourceInfo = {
@@ -9,11 +9,11 @@ export class TimoTxtPlugin implements NovelSourcePlugin {
     name: 'TimoTxt (提莫書屋)',
     baseUrl: 'https://www.timotxt.com/',
     language: 'zh',
-    version: '4.0.0',
+    version: '5.0.0',
     icon: 'https://i1.timotxt.com/images/timo.png',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'Premier Chinese Light Novel repository featuring high quality formatting and image CDN.',
+    description: 'Premier Chinese Light Novel repository. May use browser fallback for CF-protected pages.',
   };
 
   private IMAGE_CDN = 'https://i1.timotxt.com';
@@ -36,13 +36,19 @@ export class TimoTxtPlugin implements NovelSourcePlugin {
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
     const url = `https://www.timotxt.com/`;
-    const res = await smartFetch(url);
-    if (!res.success || !res.body) return { items: [], hasNext: false };
+    const sfRes = await smartFetch(url);
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(url);
+      if (!br.success || !br.html) return { items: [], hasNext: false };
+      html = br.html;
+    }
 
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
-    $('section.mt-3 ul.list.flex > li, ul.list.flex.one.two-700 > li, ul.news > li, .book-list li').each((_, el) => {
+    // Verified live: homepage uses ul.list.flex > li and similar Bulma selectors
+    $('section.mt-3 ul.list.flex > li, ul.list.flex.one.two-700 > li, ul.news > li').each((_, el) => {
       const link = $(el).find('h3 a[href], a[href]').first();
       const href = link.attr('href');
       const title = link.text().trim();
@@ -65,21 +71,26 @@ export class TimoTxtPlugin implements NovelSourcePlugin {
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    let searchUrl = `https://www.timotxt.com/search/${encodeURIComponent(query)}`;
-    let res = await smartFetch(searchUrl);
-
-    if (!res.success || !res.body || !res.body.includes('href=')) {
-      searchUrl = `https://www.timotxt.com/s?q=${encodeURIComponent(query)}`;
-      res = await smartFetch(searchUrl);
+    // Single request: GET /search/{query} (matches Lua reference)
+    // NOTE: Search returns 403 (Cloudflare) for Python urllib.
+    // smartFetch may work differently — if not, returns empty.
+    const searchUrl = `https://www.timotxt.com/search/${encodeURIComponent(query)}`;
+    const sfRes = await smartFetch(searchUrl, {
+      headers: { 'Referer': 'https://www.timotxt.com/' },
+    });
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(searchUrl);
+      if (!br.success || !br.html) return { items: [], hasNext: false };
+      html = br.html;
     }
 
-    if (!res.success || !res.body) return { items: [], hasNext: false };
-
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
-    $('ul.list.flex > li, ul.list > li, .search-results li').each((_, el) => {
-      const link = $(el).find('h3 a[href], a[href]').first();
+    // Strict selector matching Lua: ul.list.flex > li, ul.list > li
+    $('ul.list.flex > li, ul.list > li').each((_, el) => {
+      const link = $(el).find('h3 a[href]').first();
       const href = link.attr('href');
       const title = link.text().trim();
       const cover = $(el).find('img[src]').attr('src');
@@ -97,24 +108,26 @@ export class TimoTxtPlugin implements NovelSourcePlugin {
       }
     });
 
-    if (items.length === 0) {
-      const targetUrl = res.url || searchUrl || 'https://www.timotxt.com/';
-      const parsed = heuristicParseBooks(res.body, targetUrl, this.info.id, this.info.name);
-      return { items: parsed, hasNext: false };
-    }
-
+    // NO heuristic fallback
     return { items, hasNext: false };
   }
 
   async getBookDetails(bookUrl: string): Promise<PluginNovelDetail | null> {
     const dirUrl = bookUrl.endsWith('/') ? bookUrl + 'dir' : bookUrl + '/dir';
-    let res = await smartFetch(dirUrl);
-    if (!res.success || !res.body) {
-      res = await smartFetch(bookUrl);
+    const sfRes = await smartFetch(dirUrl);
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(dirUrl);
+      if (!br.success || !br.html) {
+        const fallback = await smartFetch(bookUrl);
+        if (!fallback.success || !fallback.body) return null;
+        html = fallback.body;
+      } else {
+        html = br.html;
+      }
     }
-    if (!res.success || !res.body) return null;
 
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const title = $('meta[property="og:title"]').attr('content') || $('h1.title.is-2, h1.title, h1').first().text().trim();
     let cover = $('meta[property="og:image"]').attr('content') || $('.cover img, img.book-cover').attr('src');
     const summary = $('meta[name="description"]').attr('content') || $('.intro, .description').text().trim();
@@ -149,12 +162,17 @@ export class TimoTxtPlugin implements NovelSourcePlugin {
   }
 
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    const res = await smartFetch(chapterUrl);
-    if (!res.success || !res.body) {
-      return { contentHtml: '<p>Failed to load chapter content from TimoTxt.</p>', rawText: '' };
+    const sfRes = await smartFetch(chapterUrl);
+    let html = sfRes.success && sfRes.body ? sfRes.body : '';
+    if (!html) {
+      const br = await browserFetch(chapterUrl);
+      if (!br.success || !br.html) {
+        return { contentHtml: '<p>Failed to load chapter content from TimoTxt.</p>', rawText: '' };
+      }
+      html = br.html;
     }
 
-    const $ = cheerio.load(res.body);
+    const $ = cheerio.load(html);
     const title = $('h1.imgtext, h1.chapter-title, h1').first().text().trim();
 
     $('.gadBlock, .adBlock, script, ins, style').remove();
