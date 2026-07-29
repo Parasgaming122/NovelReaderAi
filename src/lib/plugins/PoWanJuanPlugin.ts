@@ -16,6 +16,12 @@ export class PoWanJuanPlugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'GB2312',
     description: 'PoWanJuan novel site with GB2312 encoding.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — GB2312 encoding requires special handling',
+    recommendedBypassMethods: ['smartFetch', 'impit'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

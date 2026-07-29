@@ -13,7 +13,13 @@ export class TimoTxtPlugin implements NovelSourcePlugin {
     icon: 'https://i1.timotxt.com/images/timo.png',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'Premier Chinese Light Novel repository. May use browser fallback for CF-protected pages.',
+    description: 'Premier Chinese Light Novel repository. Cloudflare Turnstile on all pages.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'full',
+    cfStatus: 'Cloudflare Turnstile blocks all server-side requests. Client proxy or browser required.',
+    recommendedBypassMethods: ['browser', 'scraper', 'clientProxy'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private IMAGE_CDN = 'https://i1.timotxt.com';

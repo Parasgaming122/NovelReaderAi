@@ -16,6 +16,12 @@ export class Novel543Plugin implements NovelSourcePlugin {
     hasSearch: false,
     charset: 'UTF-8',
     description: 'Chinese novel collection. Search blocked by Cloudflare Turnstile. Use catalog browse or search via other sources.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'partial',
+    cfStatus: 'Search blocked by Cloudflare Turnstile. Catalog/Details/Chapters may work via browser/scraper.',
+    recommendedBypassMethods: ['scraper', 'browser'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

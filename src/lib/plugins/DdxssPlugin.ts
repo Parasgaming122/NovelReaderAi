@@ -16,6 +16,12 @@ export class DdxssPlugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'GBK',
     description: 'Chinese web novel source with GBK encoding, POST search and catalog.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — GBK encoding requires special handling',
+    recommendedBypassMethods: ['smartFetch', 'impit'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

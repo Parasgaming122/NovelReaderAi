@@ -16,6 +16,12 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'UTF-8',
     description: 'ShuHaiGe mobile novel site with catalog and search.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — POST-based search requires special handling',
+    recommendedBypassMethods: ['smartFetch', 'impit'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

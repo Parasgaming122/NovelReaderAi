@@ -17,7 +17,11 @@ export class TWKanPlugin implements NovelSourcePlugin {
     charset: 'UTF-8',
     description: 'TWKan novel platform. ⚠️ BLOCKED: site returns 403 Forbidden. Plugin provided for future use if site recovers.',
     blocked: true,
-    blockedReason: '403 Forbidden — Cloudflare anti-bot protection',
+    blockedReason: '403 Forbidden — anti-bot protection',
+    cfBlockLevel: 'full',
+    cfStatus: 'Blocked — Cloudflare anti-bot protection returns 403 Forbidden',
+    recommendedBypassMethods: ['browser', 'scraper', 'impit'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

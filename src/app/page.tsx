@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ConsoleShell from '@/components/ConsoleShell';
 import NovelCatalog from '@/components/NovelCatalog';
 import NovelDetailView from '@/components/NovelDetailView';
@@ -13,8 +14,11 @@ import SettingsView from '@/components/SettingsView';
 import FetchIndicator from '@/components/FetchIndicator';
 import { NovelItem, ChapterItem, NovelSourceInfo, GroupedSearchResult } from '@/lib/types';
 import { ShieldCheck, Zap, Globe, CheckCircle2 } from 'lucide-react';
+import { updateHistoryWithNovel } from '@/lib/favourites';
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'catalog' | 'sources' | 'search' | 'shelf' | 'api-docs' | 'settings'>('catalog');
   const [sources, setSources] = useState<NovelSourceInfo[]>([]);
   const [selectedNovel, setSelectedNovel] = useState<NovelItem | null>(null);
@@ -37,6 +41,21 @@ export default function Home() {
     error?: string;
   }[]>([]);
   const [showFetchIndicator, setShowFetchIndicator] = useState(false);
+
+  // Restore state from URL params on mount
+  useEffect(() => {
+    const novelParam = searchParams.get('novel');
+    if (novelParam) {
+      try {
+        const novel = JSON.parse(decodeURIComponent(novelParam));
+        if (novel && novel.id && novel.url) {
+          setSelectedNovel(novel);
+          setSelectedChapter(null);
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch Sources List on Mount
   useEffect(() => {
@@ -116,6 +135,10 @@ export default function Home() {
   const handleSelectNovel = (novel: NovelItem) => {
     setSelectedNovel(novel);
     setSelectedChapter(null);
+    // Update reading history
+    updateHistoryWithNovel(novel);
+    // Update URL
+    router.push(`?novel=${encodeURIComponent(JSON.stringify({ id: novel.id, url: novel.url, sourceId: novel.sourceId, title: novel.title }))}`, { scroll: false });
   };
 
   const handleSelectChapter = (chapter: ChapterItem, allChapters: ChapterItem[]) => {
@@ -126,6 +149,8 @@ export default function Home() {
     setActiveTab(tab);
     setSelectedNovel(null);
     setSelectedChapter(null);
+    // Clear URL params when navigating tabs
+    router.push('/', { scroll: false });
   };
 
   return (
@@ -155,11 +180,16 @@ export default function Home() {
         /* 2. Novel Detail View Mode */
         <NovelDetailView
           novel={selectedNovel}
-          onBack={() => setSelectedNovel(null)}
+          onBack={() => {
+            setSelectedNovel(null);
+            router.push('/', { scroll: false });
+          }}
           onSelectChapter={handleSelectChapter}
           onSwitchNovelSource={(newNovel) => {
             setSelectedNovel(newNovel);
             setSelectedChapter(null);
+            updateHistoryWithNovel(newNovel);
+            router.push(`?novel=${encodeURIComponent(JSON.stringify({ id: newNovel.id, url: newNovel.url, sourceId: newNovel.sourceId, title: newNovel.title }))}`, { scroll: false });
           }}
         />
       ) : activeTab === 'sources' ? (
@@ -193,5 +223,13 @@ export default function Home() {
         />
       )}
     </ConsoleShell>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

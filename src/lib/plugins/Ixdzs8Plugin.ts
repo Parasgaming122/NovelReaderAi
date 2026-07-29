@@ -8,11 +8,17 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     name: 'Aixdzs (爱下电子书)',
     baseUrl: 'https://ixdzs8.com/',
     language: 'zh',
-    version: '5.0.0',
+    version: '6.0.0',
     icon: 'https://ixdzs8.com/favicon.ico',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'Popular digital web novel repository with comprehensive text downloads & chapters. Verified working: search uses li.burl class.',
+    description: 'Popular digital web novel repository. Search & catalog fully accessible. Chapters loaded via AJAX API.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'No Cloudflare — fully accessible via smartFetch',
+    recommendedBypassMethods: ['smartFetch'],
+    availableBypassMethods: ['smartFetch', 'impit'],
   };
 
   private absUrl(href: string): string {
@@ -21,6 +27,15 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     if (href.startsWith('//')) return 'https:' + href;
     if (href.startsWith('/')) return 'https://ixdzs8.com' + href;
     return 'https://ixdzs8.com/' + href;
+  }
+
+  /**
+   * Extract the book ID (bid) from a book URL.
+   * URL format: /read/{bid}/ or /read/{bid}/index.html
+   */
+  private extractBookId(bookUrl: string): string | null {
+    const match = bookUrl.match(/\/read\/(\d+)/);
+    return match ? match[1] : null;
   }
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
@@ -59,7 +74,7 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    // Single request: GET /bsearch?q= (verified live 2026-07-28, returns 20 results for "斗破苍穹")
+    // GET /bsearch?q= (verified live: returns results with li.burl)
     const searchUrl = `https://ixdzs8.com/bsearch?q=${encodeURIComponent(query)}`;
     const res = await smartFetch(searchUrl, {
       headers: { 'Referer': 'https://ixdzs8.com/' },
@@ -70,8 +85,6 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    // Verified live: search results use li.burl (20 items found)
-    // Each li.burl has: h3.bname > a for title, .bauthor a for author, .l-p2 for description
     $('li.burl').each((_, el) => {
       const titleEl = $(el).find('h3.bname a').first();
       const href = titleEl.attr('href');
@@ -95,10 +108,21 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
       }
     });
 
-    // NO heuristic fallback
     return { items, hasNext: false };
   }
 
+  /**
+   * Get book details including the FULL chapter list.
+   * 
+   * KEY FIX: ixdzs8 only shows ~8-9 preview chapters in the HTML (newest first, reverse order).
+   * The full chapter list requires a separate AJAX call:
+   *   POST /novel/clist/ with body {bid: <bookId>}
+   * Returns JSON: {rs: 200, data: [{ordernum, title, ctype}, ...]}
+   *   - ctype == 1: non-clickable item (promo/separator)
+   *   - ctype != 1: clickable chapter, URL = /read/{bid}/p{ordernum}.html
+   * 
+   * Chapters are in ascending order (chapter 1 → latest).
+   */
   async getBookDetails(bookUrl: string): Promise<PluginNovelDetail | null> {
     const res = await smartFetch(bookUrl);
     if (!res.success || !res.body) return null;
@@ -110,18 +134,72 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     const summary = $('#intro, .intro, .description, p#intro').text().trim();
 
     const chapters: PluginChapterItem[] = [];
-    $('ul.cl_list li a, .chapter-list a, a[href*="/p"]').each((_, el) => {
-      const chTitle = $(el).text().trim();
-      const chHref = $(el).attr('href');
-      if (chTitle && chHref) {
-        const fullUrl = this.absUrl(chHref);
-        chapters.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
-          title: chTitle,
-          url: fullUrl,
+    const bid = this.extractBookId(bookUrl);
+
+    if (bid) {
+      // Use AJAX API to get the FULL chapter list
+      try {
+        const clistRes = await smartFetch('https://ixdzs8.com/novel/clist/', {
+          method: 'POST',
+          body: `bid=${bid}`,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Referer': bookUrl,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
         });
+
+        if (clistRes.success && clistRes.body) {
+          // Try to parse as JSON first (AJAX endpoint returns JSON)
+          try {
+            const data = JSON.parse(clistRes.body);
+            if (data.rs === 200 && Array.isArray(data.data)) {
+              for (const item of data.data) {
+                // Skip non-chapter items (ctype == 1 = separator/promo)
+                if (item.ctype === 1) continue;
+                
+                const chTitle = (item.title || '').trim();
+                const ordernum = item.ordernum;
+                
+                if (chTitle && ordernum !== undefined) {
+                  const chapterUrl = `https://ixdzs8.com/read/${bid}/p${ordernum}.html`;
+                  chapters.push({
+                    id: Buffer.from(chapterUrl).toString('base64url'),
+                    title: chTitle,
+                    url: chapterUrl,
+                  });
+                }
+              }
+              console.log(`[Ixdzs8] Loaded ${chapters.length} chapters via AJAX for bid=${bid}`);
+            }
+          } catch {
+            // If not JSON, fall back to HTML parsing below
+            console.log('[Ixdzs8] AJAX response not JSON, falling back to HTML parsing');
+          }
+        }
+      } catch (err) {
+        console.error('[Ixdzs8] AJAX clist fetch failed:', err);
       }
-    });
+    }
+
+    // Fallback: parse preview chapters from HTML (only ~8-9 chapters, newest first)
+    if (chapters.length === 0) {
+      $('ul.cl_list li a, .chapter-list a, ul.u-chapter li a, a[href*="/p"]').each((_, el) => {
+        const chTitle = $(el).text().trim();
+        const chHref = $(el).attr('href');
+        if (chTitle && chHref) {
+          const fullUrl = this.absUrl(chHref);
+          chapters.push({
+            id: Buffer.from(fullUrl).toString('base64url'),
+            title: chTitle,
+            url: fullUrl,
+          });
+        }
+      });
+      // Reverse since HTML preview is newest-first, we want ascending
+      chapters.reverse();
+      console.log(`[Ixdzs8] Fallback: loaded ${chapters.length} preview chapters from HTML`);
+    }
 
     return {
       id: Buffer.from(bookUrl).toString('base64url'),

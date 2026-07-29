@@ -1,3 +1,7 @@
+export type CFBlockLevel = 'none' | 'partial' | 'full';
+
+export type BypassMethod = 'smartFetch' | 'impit' | 'browser' | 'scraper' | 'clientProxy';
+
 export interface PluginSourceInfo {
   id: string;
   name: string;
@@ -12,6 +16,14 @@ export interface PluginSourceInfo {
   blocked?: boolean;
   /** Block reason (e.g. "403 Forbidden", "Timeout", "Turnstile") */
   blockedReason?: string;
+  /** Cloudflare blocking level: 'none'=accessible, 'partial'=some features blocked(e.g. search only), 'full'=completely blocked */
+  cfBlockLevel?: CFBlockLevel;
+  /** Detailed CF status description for settings UI */
+  cfStatus?: string;
+  /** Default bypass methods that work for this source (ordered by effectiveness) */
+  recommendedBypassMethods?: BypassMethod[];
+  /** All available bypass methods user can try */
+  availableBypassMethods?: BypassMethod[];
 }
 
 export interface PluginNovelItem {

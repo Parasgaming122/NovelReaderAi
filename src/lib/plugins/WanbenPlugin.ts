@@ -16,6 +16,12 @@ export class WanbenPlugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'UTF-8',
     description: '万本TXT — Chinese novel text repository. Browse catalog and search for novel downloads.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — no Cloudflare protection detected',
+    recommendedBypassMethods: ['smartFetch'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

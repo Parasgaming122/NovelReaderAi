@@ -15,7 +15,9 @@ import {
   Layers,
   Sparkles,
   Globe,
+  Heart,
 } from 'lucide-react';
+import { addFavourite, removeFavourite, isFavourite } from '@/lib/favourites';
 import { NovelItem, ChapterItem, AlternativeSourceResult } from '@/lib/types';
 
 interface NovelDetailViewProps {
@@ -47,6 +49,24 @@ export default function NovelDetailView({
   // Alternative sources state
   const [altSources, setAltSources] = useState<AlternativeSourceResult[]>([]);
   const [loadingAltSources, setLoadingAltSources] = useState(false);
+
+  // Favourite state
+  const [favourited, setFavourited] = useState(false);
+
+  // Check favourite status on mount/novel change
+  useEffect(() => {
+    setFavourited(isFavourite(novel.id));
+  }, [novel.id]);
+
+  const handleToggleFavourite = () => {
+    if (favourited) {
+      removeFavourite(novel.id);
+      setFavourited(false);
+    } else {
+      addFavourite(novel);
+      setFavourited(true);
+    }
+  };
 
   useEffect(() => {
     async function fetchAlternativeSources(titleToQuery: string) {
@@ -253,6 +273,21 @@ export default function NovelDetailView({
                 <ExternalLink size={16} strokeWidth={1.8} />
                 <span>Visit Source Site</span>
               </a>
+
+              <button
+                className={favourited ? 'btn-primary' : 'btn-secondary'}
+                onClick={handleToggleFavourite}
+                style={{ padding: '12px 20px', fontSize: 14, borderColor: favourited ? 'var(--red, #ef4444)' : undefined }}
+                title={favourited ? 'Remove from Favourites' : 'Add to Favourites'}
+              >
+                <Heart
+                  size={16}
+                  strokeWidth={favourited ? 0 : 1.8}
+                  fill={favourited ? 'var(--red, #ef4444)' : 'none'}
+                  style={{ color: favourited ? 'var(--red, #ef4444)' : 'currentColor' }}
+                />
+                <span>{favourited ? 'Favourited' : 'Add to Favourites'}</span>
+              </button>
             </div>
           </div>
         </div>

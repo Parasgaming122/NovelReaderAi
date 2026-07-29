@@ -17,7 +17,11 @@ export class SoxsPlugin implements NovelSourcePlugin {
     charset: 'UTF-8',
     description: '搜小说网 — Chinese novel search and reading site. ⚠️ BLOCKED: site times out consistently. Plugin provided for future use if site recovers.',
     blocked: true,
-    blockedReason: 'Timeout — site consistently times out',
+    blockedReason: 'Timeout — server blocks automated requests',
+    cfBlockLevel: 'full',
+    cfStatus: 'Blocked — server consistently times out for automated requests',
+    recommendedBypassMethods: ['impit', 'browser', 'scraper'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

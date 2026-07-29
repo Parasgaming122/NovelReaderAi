@@ -16,6 +16,12 @@ export class Shw5Plugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'UTF-8',
     description: 'Shw5 Chinese novel reading site with catalog and search.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — no Cloudflare protection detected',
+    recommendedBypassMethods: ['smartFetch'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

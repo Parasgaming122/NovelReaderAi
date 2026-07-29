@@ -16,6 +16,12 @@ export class SnapdPlugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'UTF-8',
     description: 'SnapD Chinese novel aggregator. Browse catalog and search available.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — no Cloudflare protection detected',
+    recommendedBypassMethods: ['smartFetch'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

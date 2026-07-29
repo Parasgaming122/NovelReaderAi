@@ -13,9 +13,13 @@ export class Shuba69Plugin implements NovelSourcePlugin {
     icon: 'https://www.69shuba.com/favicon.ico',
     hasSearch: true,
     charset: 'GBK',
-    description: 'Extensive web novel database. May be blocked by Cloudflare — uses browser fallback.',
+    description: 'Extensive web novel database. Server returns OK only — site appears to be down.',
     blocked: true,
-    blockedReason: '403 Forbidden — Cloudflare anti-bot protection',
+    blockedReason: 'Site Down — server returns empty "OK" response, no usable content',
+    cfBlockLevel: 'full',
+    cfStatus: 'Site is DOWN (returns <body><pre>OK</pre>). Not Cloudflare — server is inactive.',
+    recommendedBypassMethods: [],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string): string {

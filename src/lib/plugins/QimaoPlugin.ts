@@ -17,7 +17,11 @@ export class QimaoPlugin implements NovelSourcePlugin {
     charset: 'UTF-8',
     description: '七猫小说 — Major Chinese novel platform. ⚠️ SITE ISSUES: root URL returns 405. Plugin may not work reliably. Provided for future use.',
     blocked: true,
-    blockedReason: '405 Not Allowed — site rejects root requests',
+    blockedReason: '405 Not Allowed — API blocked',
+    cfBlockLevel: 'full',
+    cfStatus: 'Blocked — site returns 405 for root and API requests',
+    recommendedBypassMethods: ['smartFetch', 'impit'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

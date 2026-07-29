@@ -16,6 +16,12 @@ export class BiQuGe5200Plugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'UTF-8',
     description: 'Chinese web novel source with catalog and search support.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — no Cloudflare protection detected',
+    recommendedBypassMethods: ['smartFetch'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {

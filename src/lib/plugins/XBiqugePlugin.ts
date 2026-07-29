@@ -8,11 +8,17 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     name: 'XBiquge (新笔趣阁)',
     baseUrl: 'https://www.xbiquge.info/',
     language: 'zh',
-    version: '5.0.0',
+    version: '6.0.0',
     icon: 'https://www.xbiquge.info/favicon.ico',
     hasSearch: true,
-    charset: 'UTF-8', // Verified live: UTF-8, NOT GBK
-    description: 'High-speed Chinese web novel mirror. Search endpoint updated from wss.php to search.php after old endpoint went 502.',
+    charset: 'UTF-8',
+    description: 'High-speed Chinese web novel mirror. Multiple mirror domains available.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'No Cloudflare — accessible via smartFetch. Mirror: xbiquge.info works.',
+    recommendedBypassMethods: ['smartFetch'],
+    availableBypassMethods: ['smartFetch', 'impit'],
   };
 
   private absUrl(href: string): string {

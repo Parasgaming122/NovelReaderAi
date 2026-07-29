@@ -17,6 +17,12 @@ export class Quanben5Plugin implements NovelSourcePlugin {
     hasSearch: true,
     charset: 'UTF-8',
     description: 'Quanben5 novel site with JSONP search API.',
+    blocked: false,
+    blockedReason: '',
+    cfBlockLevel: 'none',
+    cfStatus: 'Accessible — JSONP callback parsing required for search',
+    recommendedBypassMethods: ['smartFetch', 'impit'],
+    availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
   private absUrl(href: string | undefined | null): string {
