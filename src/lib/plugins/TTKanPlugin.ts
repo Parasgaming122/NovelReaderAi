@@ -114,7 +114,8 @@ export class TTKanPlugin implements NovelSourcePlugin {
     const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
-    $('.novel_cell').each((_, el) => {
+    // Use context-specific selector to avoid grabbing sidebar/footer .novel_cell
+    $('.pure-g .pure-u-1-1 .novel_cell, .search-result .novel_cell, .novel_cell').each((_, el) => {
       const $el = $(el);
       const linkEl = $el.find('a[href*="/novel/chapters/"]').first();
       const href = linkEl.attr('href');

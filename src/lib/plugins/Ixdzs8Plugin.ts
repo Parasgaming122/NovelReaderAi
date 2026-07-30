@@ -221,7 +221,14 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
    * We need to detect this and auto-follow the redirect.
    */
   private async resolveChallenge(url: string, body: string): Promise<{ url: string; body: string } | null> {
-    const tokenMatch = body.match(/token\s*=\s*"([^"]+)"/);
+    // Flexible regex: match any variable assigned a long alphanumeric string
+    // before a redirect. Handles variable name changes (token, challenge, cf_token, etc.)
+    // Also matches the redirect URL pattern directly as fallback.
+    let tokenMatch = body.match(/(?:var\s+)?[\w$]+\s*=\s*"([A-Za-z0-9\-_]{10,})"/);
+    if (!tokenMatch) {
+      // Fallback: look for challenge= in a redirect URL
+      tokenMatch = body.match(/[?&]challenge=([A-Za-z0-9\-_]+)/);
+    }
     if (!tokenMatch) return null;
     const token = tokenMatch[1];
     const challengeUrl = `${url}?challenge=${encodeURIComponent(token)}`;
@@ -269,8 +276,9 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     // Correct selector: h1.page-d-name
     const title = $('h1.page-d-name, h1').first().text().trim();
 
-    // Correct content selector: article.page-content section
-    const contentEl = $('article.page-content section, article.page-content, .page-content section, .page-content').first();
+    // Content selector — try broader match first, then more specific
+    // (site may change inner structure from <section> to <p> etc.)
+    const contentEl = $('article.page-content, .page-content, article.page-content section, .page-content section').first();
 
     if (!contentEl.length) {
       return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };

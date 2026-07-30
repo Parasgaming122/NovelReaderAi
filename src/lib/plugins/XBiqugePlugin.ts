@@ -191,8 +191,9 @@ export class XBiqugePlugin implements NovelSourcePlugin {
 
     while (pageNum <= MAX_PAGES) {
       if (pageNum > 1) {
-        // Construct next page URL: replace .html with _N.html
-        const baseUrl = chapterUrl.replace(/\.html$/, '');
+        // Construct next page URL: strip any existing _N.html suffix first
+        // Handles both '12345.html' and '12345_1.html' base formats
+        const baseUrl = chapterUrl.replace(/_\d+\.html$/, '.html').replace(/\.html$/, '');
         const pageUrl = `${baseUrl}_${pageNum}.html`;
         const nextRes = await smartFetch(pageUrl, { timeout: 20000 });
         if (!nextRes.success || !nextRes.body) break;
@@ -208,7 +209,8 @@ export class XBiqugePlugin implements NovelSourcePlugin {
       const lines = rawHtml
         .split(/<br\s*\/?>|\n+/)
         .map((l) => cheerio.load(l).text().trim())
-        .filter((l) => l.length > 0 && !l.startsWith('第(') && !/^\s*$/.test(l));
+        .map((l) => l.replace(/第\([^)]*\)/g, ''))  // Strip anti-scraping markers globally
+        .filter((l) => l.length > 0 && !/^[\s第(）)]+$/i.test(l) && !/^\s*$/.test(l));
 
       allLines.push(...lines);
 

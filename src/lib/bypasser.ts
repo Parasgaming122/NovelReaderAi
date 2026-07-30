@@ -129,6 +129,8 @@ export async function smartFetch(
   const timeout = options.timeout ?? 15000;
   const charset = (options.charset || 'UTF-8').toUpperCase();
   const isGBK = charset.includes('GBK') || charset.includes('GB2312');
+  const isBig5 = charset.includes('BIG5') || charset.includes('TRADITIONAL');
+  const needsIconv = isGBK || isBig5;
 
   await enforceRateLimit(domain);
 
@@ -197,13 +199,20 @@ export async function smartFetch(
         });
       }
 
+      // Detect charset from response Content-Type header (e.g., charset=big5)
+      const contentType = res.headers.get('content-type') || '';
+      const ctCharset = (contentType.match(/charset=([\w-]+)/i) || [])[1]?.toUpperCase();
+      const ctIsGBK = ctCharset?.includes('GBK') || ctCharset?.includes('GB2312');
+      const ctIsBig5 = ctCharset?.includes('BIG5');
+      const ctNeedsIconv = ctIsGBK || ctIsBig5;
+
       // Decode response body
       let body: string;
-      if (isGBK) {
-        // GBK: need raw bytes → iconv decode
+      if (needsIconv || ctNeedsIconv) {
+        // Non-UTF-8: need raw bytes → iconv decode
         const arrayBuffer = await res.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        body = iconv.decode(buffer, 'gbk');
+        body = iconv.decode(buffer, (isGBK || ctIsGBK) ? 'gbk' : 'big5');
       } else {
         // UTF-8: let undici auto-decompress and decode
         body = await res.text();

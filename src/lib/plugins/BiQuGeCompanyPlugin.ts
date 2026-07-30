@@ -3,19 +3,48 @@ import { smartFetch } from '@/lib/bypasser';
 import { scraperFetch, isScraperAvailable } from '@/lib/scraper-client';
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
 
-const BASE = 'https://www.biquge.company';
+/**
+ * Domain fallback list for BiQuGe — primary domain may get ISP-hijacked
+ * (国家反诈中心 anti-fraud interception). Try each in order until one works.
+ */
+const DOMAIN_FALLBACKS = [
+  'https://www.biquge.company',
+  'https://www.biquge9.com',
+  'https://www.biquge.tv',
+  'https://www.biquge.co',
+];
+
+let _activeBase: string | null = null;
+
+async function getActiveBase(): Promise<string> {
+  if (_activeBase) return _activeBase;
+  for (const domain of DOMAIN_FALLBACKS) {
+    try {
+      const probe = await smartFetch(domain + '/', { timeout: 8000 });
+      // Reject ISP hijack pages (anti-fraud interception)
+      if (probe.success && probe.body && !probe.body.includes('反诈') && !probe.body.includes('national anti-fraud') && probe.body.length > 500) {
+        _activeBase = domain;
+        console.log(`[BiQuGeCompany] Active domain: ${domain}`);
+        return domain;
+      }
+    } catch { continue; }
+  }
+  // All probes failed — use primary and let individual requests handle errors
+  _activeBase = DOMAIN_FALLBACKS[0];
+  return _activeBase;
+}
 
 export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
   public info: PluginSourceInfo = {
     id: 'biqugecompany',
     name: '笔趣阁.company',
-    baseUrl: BASE + '/',
+    baseUrl: 'https://www.biquge.company/',
     language: 'zh',
-    version: '1.0.0',
+    version: '2.0.0',
     icon: 'https://raw.githubusercontent.com/Parasgaming122/external-sources/main/icons/biqugecompany.png',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'Chinese web novel source with POST search and catalog.',
+    description: 'Chinese web novel source with domain fallback. POST search and catalog. Detects ISP anti-fraud hijack.',
     blocked: false,
     blockedReason: '',
     cfBlockLevel: 'none',
@@ -24,27 +53,40 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
-  private absUrl(href: string | undefined | null): string {
+  /** Build absolute URL using the currently active base domain */
+  private resolveUrl(href: string | undefined | null, base: string): string {
     if (!href) return '';
     if (href.startsWith('http')) return href;
     if (href.startsWith('//')) return 'https:' + href;
-    if (href.startsWith('/')) return BASE + href;
-    return BASE + '/' + href;
+    if (href.startsWith('/')) return base + href;
+    return base + '/' + href;
+  }
+
+  /** Remap any biquge.company URL to the active base domain */
+  private async remapUrl(url: string): Promise<string> {
+    const base = await getActiveBase();
+    return url.replace(/https?:\/\/[^\/]+/, base);
   }
 
   private async fetchPage(url: string, retries = 2): Promise<{ html: string; success: boolean }> {
+    const fetchUrl = await this.remapUrl(url);
+
     const useScraper = await isScraperAvailable();
     if (useScraper) {
       for (let i = 0; i < retries; i++) {
-        const result = await scraperFetch(url, { timeout: 45, maxRetries: 1 });
-        if (result.success && result.html && result.html.length > 500) {
+        const result = await scraperFetch(fetchUrl, { timeout: 45, maxRetries: 1 });
+        if (result.success && result.html && result.html.length > 500
+            && !result.html.includes('反诈') && !result.html.includes('national anti-fraud')) {
           return { html: result.html, success: true };
         }
         if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
       }
     }
-    const res = await smartFetch(url);
-    if (res.success && res.body) return { html: res.body, success: true };
+    const res = await smartFetch(fetchUrl);
+    if (res.success && res.body
+        && !res.body.includes('反诈') && !res.body.includes('national anti-fraud')) {
+      return { html: res.body, success: true };
+    }
     return { html: '', success: false };
   }
 
@@ -52,13 +94,14 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     return text
       .replace(/https?:\/\/[^\s]+/g, '')
       .replace(/www\.[^\s]+/g, '')
-      .replace(/biquge\.company[^\s]*/gi, '')
+      .replace(/biquge\.(company|9\.com|tv|co)[^\s]*/gi, '')
       .replace(/[\n]{3,}/g, '\n\n')
       .trim();
   }
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const url = `${BASE}/sort/0/${page}.html`;
+    const base = await getActiveBase();
+    const url = `${base}/sort/0/${page}.html`;
     const { html, success } = await this.fetchPage(url);
     if (!success) return { items: [], hasNext: false };
 
@@ -68,20 +111,19 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
 
     $('a[href*="/book/"]').each((_, el) => {
       const href = $(el).attr('href');
-      const fullUrl = this.absUrl(href);
-      if (!href || seen.has(fullUrl)) return;
-      seen.add(fullUrl);
+      if (!href || seen.has(href)) return;
+      seen.add(href);
 
       const title = $(el).text().trim();
       const cover = $(el).find('img').attr('src') || $(el).closest('li, div').find('img').attr('src');
 
       if (title && href) {
         items.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
+          id: Buffer.from(this.resolveUrl(href, base)).toString('base64url'),
           title,
           chineseTitle: title,
-          url: fullUrl,
-          cover: cover ? this.absUrl(cover) : undefined,
+          url: this.resolveUrl(href, base),
+          cover: cover ? this.resolveUrl(cover, base) : undefined,
           sourceId: this.info.id,
           sourceName: this.info.name,
         });
@@ -92,7 +134,8 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const searchUrl = `${BASE}/modules/article/search.php`;
+    const base = await getActiveBase();
+    const searchUrl = `${base}/modules/article/search.php`;
     let html = '';
     let success = false;
 
@@ -119,20 +162,19 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
 
     $('a[href*="/book/"]').each((_, el) => {
       const href = $(el).attr('href');
-      const fullUrl = this.absUrl(href);
-      if (!href || seen.has(fullUrl)) return;
-      seen.add(fullUrl);
+      if (!href || seen.has(href)) return;
+      seen.add(href);
 
       const title = $(el).text().trim();
       const cover = $(el).find('img').attr('src') || $(el).closest('li, div').find('img').attr('src');
 
       if (title && href) {
         items.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
+          id: Buffer.from(this.resolveUrl(href, base)).toString('base64url'),
           title,
           chineseTitle: title,
-          url: fullUrl,
-          cover: cover ? this.absUrl(cover) : undefined,
+          url: this.resolveUrl(href, base),
+          cover: cover ? this.resolveUrl(cover, base) : undefined,
           sourceId: this.info.id,
           sourceName: this.info.name,
         });
@@ -146,6 +188,7 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     const { html, success } = await this.fetchPage(bookUrl);
     if (!success) return null;
 
+    const base = await getActiveBase();
     const $ = cheerio.load(html);
     const title = $('h1').first().text().trim();
     if (!title) return null;
@@ -163,14 +206,13 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
       const chHref = $(el).attr('href');
       if (!chTitle || !chHref || chTitle.length < 2 || chTitle.length > 100) return;
       // Skip non-chapter links (开始阅读, ads, external)
-      if (/^开始阅读$|\\.com|\\.net|\\.xyz|pozhai|lashuwu|seyazho|35ren/i.test(chTitle)) return;
+      if (/^开始阅读$|\.com|\.net|\.xyz|pozhai|lashuwu|seyazho|35ren/i.test(chTitle)) return;
       if (seen.has(chHref)) return;
       seen.add(chHref);
-      const fullUrl = this.absUrl(chHref);
       chapters.push({
-        id: Buffer.from(fullUrl).toString('base64url'),
+        id: Buffer.from(this.resolveUrl(chHref, base)).toString('base64url'),
         title: chTitle,
-        url: fullUrl,
+        url: this.resolveUrl(chHref, base),
       });
     });
     // Reverse to get ascending order (chapter 1 → latest)
@@ -183,11 +225,10 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
         const chHref = $(el).attr('href');
         if (chTitle && chHref && !/^开始阅读$/.test(chTitle) && !seen.has(chHref)) {
           seen.add(chHref);
-          const fullUrl = this.absUrl(chHref);
           chapters.push({
-            id: Buffer.from(fullUrl).toString('base64url'),
+            id: Buffer.from(this.resolveUrl(chHref, base)).toString('base64url'),
             title: chTitle,
-            url: fullUrl,
+            url: this.resolveUrl(chHref, base),
           });
         }
       });
@@ -199,7 +240,7 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
       title,
       chineseTitle: title,
       url: bookUrl,
-      cover: cover ? this.absUrl(cover) : undefined,
+      cover: cover ? this.resolveUrl(cover, base) : undefined,
       summary: this.cleanText(summary),
       sourceId: this.info.id,
       sourceName: this.info.name,

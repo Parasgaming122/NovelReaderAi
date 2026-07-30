@@ -14,7 +14,7 @@ export class Quanben5Plugin implements NovelSourcePlugin {
     version: '2.0.0',
     icon: 'https://raw.githubusercontent.com/Parasgaming122/external-sources/main/icons/quanben5.png',
     hasSearch: true,
-    charset: 'UTF-8',
+    charset: 'Big5',
     description: 'Quanben5 novel site (Traditional Chinese). Chapters on separate xiaoshuo.html page.',
     blocked: false,
     blockedReason: '',
@@ -52,7 +52,7 @@ export class Quanben5Plugin implements NovelSourcePlugin {
         if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
       }
     }
-    const res = await smartFetch(url);
+    const res = await smartFetch(url, { charset: 'Big5' });
     if (res.success && res.body) return { html: res.body, success: true };
     return { html: '', success: false };
   }

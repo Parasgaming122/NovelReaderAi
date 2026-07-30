@@ -220,7 +220,8 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
     const $ = cheerio.load(res.body);
     const title = $('h1, .chapter-title').first().text().trim();
 
-    const contentEl = $('#content, .content, .read-content').first();
+    // Prioritize specific selectors over generic .content (which can match nav/footers/ads)
+    const contentEl = $('#content, .read-content, .chapter-content, .content').first();
     if (!contentEl.length) {
       return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
     }
