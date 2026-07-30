@@ -169,16 +169,24 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
     const summary = $info('.intro, .desc p, .description').first().text().trim();
     const author = $info('.author, .book-author').first().text().replace(/作者[：:]/, '').trim();
 
-    // Fetch chapter list page
+    // Fetch chapter list page(s) — ShuHaiGe paginates chapter lists
     const listUrl = `${BASE}/${bookId}/`;
-    const listRes = await smartFetch(listUrl);
     const chapters: PluginChapterItem[] = [];
+    const seen = new Set<string>();
+    const MAX_CHAPTER_PAGES = 20;
+    let chapterPage = 1;
 
-    if (listRes.success && listRes.body) {
+    while (chapterPage <= MAX_CHAPTER_PAGES) {
+      const pageUrl = chapterPage === 1 ? listUrl : `${BASE}/${bookId}/${chapterPage}.html`;
+      const listRes = await smartFetch(pageUrl);
+
+      if (!listRes.success || !listRes.body) break;
+
       const $list = cheerio.load(listRes.body);
+      let pageChapterCount = 0;
+
       // Chapter links: /{bookId}/{chapterId}.html
-      const seen = new Set<string>();
-      $list('a[href*="/' + bookId + '/"]').each((_, el) => {
+      $list('a[href]').each((_, el) => {
         const href = $list(el).attr('href') || '';
         const chMatch = href.match(/^\/(\d+)\/(\d+)\.html$/);
         if (!chMatch || chMatch[1] !== bookId) return;
@@ -193,9 +201,41 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
             title: chTitle,
             url: fullUrl,
           });
+          pageChapterCount++;
         }
       });
+
+      // If this page had no new chapters, stop paginating
+      if (pageChapterCount === 0) break;
+
+      // Check if there's a next page link (multiple strategies for robustness)
+      const nextPageNum = chapterPage + 1;
+      let hasNextPage = $list('a[href*="/' + bookId + '/' + nextPageNum + '.html"]').length > 0
+        || $list('.pagelink a:contains("' + nextPageNum + '")').length > 0;
+      // Fallback: scan all a[href] links for one whose text contains 下一页 or whose href
+      // points to the next page number
+      if (!hasNextPage) {
+        $list('a[href]').each((_, el) => {
+          const linkText = $list(el).text().trim();
+          const linkHref = $list(el).attr('href') || '';
+          if (linkText.includes('下一页') || linkHref.includes('/' + nextPageNum + '.html')) {
+            hasNextPage = true;
+            return false; // break
+          }
+        });
+      }
+
+      if (pageChapterCount === 0) break;
+      chapterPage++;
     }
+
+    // Sort chapters by chapter number in URL (ascending)
+    chapters.sort((a, b) => {
+      const numA = a.url.match(/\/(\d+)\.html$/);
+      const numB = b.url.match(/\/(\d+)\.html$/);
+      if (numA && numB) return parseInt(numA[1]) - parseInt(numB[1]);
+      return 0;
+    });
 
     return {
       id: Buffer.from(bookUrl).toString('base64url'),

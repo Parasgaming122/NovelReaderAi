@@ -42,6 +42,12 @@ export class Quanben5Plugin implements NovelSourcePlugin {
   }
 
   private async fetchPage(url: string, retries = 2): Promise<{ html: string; success: boolean }> {
+    // Always try smartFetch first (it handles Big5 decoding via iconv)
+    // scraperFetch doesn't decode Big5, so it's only a last-resort fallback
+    const res = await smartFetch(url, { charset: 'Big5' });
+    if (res.success && res.body && res.body.length > 100) return { html: res.body, success: true };
+
+    // Fallback to scraper (may have mojibake for Big5)
     const useScraper = await isScraperAvailable();
     if (useScraper) {
       for (let i = 0; i < retries; i++) {
@@ -52,8 +58,6 @@ export class Quanben5Plugin implements NovelSourcePlugin {
         if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
       }
     }
-    const res = await smartFetch(url, { charset: 'Big5' });
-    if (res.success && res.body) return { html: res.body, success: true };
     return { html: '', success: false };
   }
 

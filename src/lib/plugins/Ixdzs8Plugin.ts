@@ -138,7 +138,9 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
 
     if (bid) {
       // Use AJAX API to get the FULL chapter list
+      // Strategy 1: Direct POST
       try {
+        let clistBody = '';
         const clistRes = await smartFetch('https://ixdzs8.com/novel/clist/', {
           method: 'POST',
           body: `bid=${bid}`,
@@ -150,17 +152,35 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
         });
 
         if (clistRes.success && clistRes.body) {
-          // Try to parse as JSON first (AJAX endpoint returns JSON)
+          // Check if the response is a JS challenge (not JSON)
+          const challengeCheck = clistRes.body.match(/(?:var\s+)?[\w$]+\s*=\s*"([A-Za-z0-9\-_]{10,})"/);
+          if (challengeCheck) {
+            // The clist endpoint returned a challenge — resolve it
+            const token = challengeCheck[1];
+            const challengeUrl = `https://ixdzs8.com/novel/clist/?challenge=${encodeURIComponent(token)}`;
+            const chRes = await smartFetch(challengeUrl, {
+              method: 'POST',
+              body: `bid=${bid}`,
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Referer': bookUrl,
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+            });
+            if (chRes.success && chRes.body) clistBody = chRes.body;
+          } else {
+            clistBody = clistRes.body;
+          }
+        }
+
+        if (clistBody) {
           try {
-            const data = JSON.parse(clistRes.body);
+            const data = JSON.parse(clistBody);
             if (data.rs === 200 && Array.isArray(data.data)) {
               for (const item of data.data) {
-                // Skip non-chapter items (ctype == 1 = separator/promo)
                 if (item.ctype === 1) continue;
-                
                 const chTitle = (item.title || '').trim();
                 const ordernum = item.ordernum;
-                
                 if (chTitle && ordernum !== undefined) {
                   const chapterUrl = `https://ixdzs8.com/read/${bid}/p${ordernum}.html`;
                   chapters.push({
@@ -173,7 +193,6 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
               console.log(`[Ixdzs8] Loaded ${chapters.length} chapters via AJAX for bid=${bid}`);
             }
           } catch {
-            // If not JSON, fall back to HTML parsing below
             console.log('[Ixdzs8] AJAX response not JSON, falling back to HTML parsing');
           }
         }
@@ -182,23 +201,43 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
       }
     }
 
-    // Fallback: parse preview chapters from HTML (only ~8-9 chapters, newest first)
+    // Fallback: parse chapters from HTML (scrape all links containing /p{number}.html)
     if (chapters.length === 0) {
-      $('ul.cl_list li a, .chapter-list a, ul.u-chapter li a, a[href*="/p"]').each((_, el) => {
+      // Try multiple chapter link patterns
+      $('a[href*="/p"]').each((_, el) => {
         const chTitle = $(el).text().trim();
         const chHref = $(el).attr('href');
-        if (chTitle && chHref) {
+        if (chTitle && chHref && /\/p\d+\.html$/.test(chHref) && chTitle.length > 1 && chTitle.length < 100) {
           const fullUrl = this.absUrl(chHref);
-          chapters.push({
-            id: Buffer.from(fullUrl).toString('base64url'),
-            title: chTitle,
-            url: fullUrl,
-          });
+          if (!chapters.some(c => c.url === fullUrl)) {
+            chapters.push({
+              id: Buffer.from(fullUrl).toString('base64url'),
+              title: chTitle,
+              url: fullUrl,
+            });
+          }
         }
       });
-      // Reverse since HTML preview is newest-first, we want ascending
-      chapters.reverse();
-      console.log(`[Ixdzs8] Fallback: loaded ${chapters.length} preview chapters from HTML`);
+
+      // Also try ul.cl_list and other common chapter list patterns
+      if (chapters.length === 0) {
+        $('ul.cl_list li a, .chapter-list a, ul.u-chapter li a, .listmain dd a').each((_, el) => {
+          const chTitle = $(el).text().trim();
+          const chHref = $(el).attr('href');
+          if (chTitle && chHref && chTitle.length > 1) {
+            const fullUrl = this.absUrl(chHref);
+            if (!chapters.some(c => c.url === fullUrl)) {
+              chapters.push({
+                id: Buffer.from(fullUrl).toString('base64url'),
+                title: chTitle,
+                url: fullUrl,
+              });
+            }
+          }
+        });
+      }
+
+      console.log(`[Ixdzs8] Fallback: loaded ${chapters.length} chapters from HTML`);
     }
 
     return {

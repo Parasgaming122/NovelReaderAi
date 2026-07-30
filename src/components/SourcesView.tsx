@@ -12,8 +12,9 @@ import {
   ArrowLeft,
   Server,
   Filter,
+  ChevronDown,
 } from 'lucide-react';
-import { NovelSourceInfo, NovelItem } from '@/lib/types';
+import { NovelSourceInfo, NovelItem, GroupedSearchResult } from '@/lib/types';
 
 interface SourcesViewProps {
   sources: NovelSourceInfo[];
@@ -56,6 +57,41 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
     window.addEventListener('plugin_settings_updated', applyPluginSettings);
     return () => window.removeEventListener('plugin_settings_updated', applyPluginSettings);
   }, [sources]);
+  const [globalQuery, setGlobalQuery] = useState('');
+  const [globalResults, setGlobalResults] = useState<GroupedSearchResult[]>([]);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (sourceId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(sourceId)) {
+        next.delete(sourceId);
+      } else {
+        next.add(sourceId);
+      }
+      return next;
+    });
+  };
+
+  const handleGlobalSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = globalQuery.trim();
+    if (!query) return;
+
+    setGlobalLoading(true);
+    setGlobalResults([]);
+    try {
+      const res = await fetch(`/api/multi-search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setGlobalResults(data.results || []);
+    } catch (err) {
+      console.error('Global search error:', err);
+    } finally {
+      setGlobalLoading(false);
+    }
+  };
+
   const [sourceFeed, setSourceFeed] = useState<NovelItem[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [singleSearchQuery, setSingleSearchQuery] = useState('');
@@ -246,8 +282,188 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
           )}
         </div>
       ) : (
-        /* All Sources Listing View */
         <div>
+          <div className="console-card" style={{ padding: 24, marginBottom: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: 'var(--blue-soft)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--blue)',
+                }}
+              >
+                <Search size={18} strokeWidth={1.8} />
+              </div>
+              <div>
+                <h3 className="font-display" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>
+                  Global Search
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 1 }}>
+                  Search across all {sources.length} sources at once
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleGlobalSearch} style={{ display: 'flex', gap: 10 }}>
+              <div className="search-pill" style={{ flex: 1, padding: '10px 14px' }}>
+                <Search size={16} strokeWidth={1.8} style={{ color: 'var(--text-3)' }} />
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder={`Search all ${sources.length} sources...`}
+                  value={globalQuery}
+                  onChange={(e) => setGlobalQuery(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn-primary" style={{ padding: '10px 20px', fontSize: 13 }} disabled={globalLoading}>
+                {globalLoading ? (
+                  <RefreshCw size={14} className="spin" />
+                ) : (
+                  <Search size={14} strokeWidth={1.8} />
+                )}
+                <span>{globalLoading ? 'Searching…' : 'Search All'}</span>
+              </button>
+            </form>
+
+            {/* Global Search Results grouped by source */}
+            {globalResults.length > 0 && (
+              <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
+                  Found results in {globalResults.length} source{globalResults.length !== 1 ? 's' : ''}
+                </div>
+
+                {globalResults.map((group) => (
+                  <div key={group.sourceId} style={{ marginBottom: 12 }}>
+                    {/* Collapsible group header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.sourceId)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        backgroundColor: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        cursor: 'pointer',
+                        color: 'var(--text-1)',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        fontFamily: 'Space Grotesk, sans-serif',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-2)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface)')}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Globe size={14} style={{ color: 'var(--blue)' }} />
+                        {group.sourceName}
+                        <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400 }}>
+                          ({group.items.length} result{group.items.length !== 1 ? 's' : ''})
+                        </span>
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          color: 'var(--text-3)',
+                          transition: 'transform 0.2s ease',
+                          transform: collapsedGroups.has(group.sourceId) ? 'rotate(-90deg)' : 'rotate(0deg)',
+                        }}
+                      />
+                    </button>
+
+                    {/* Collapsible items */}
+                    {!collapsedGroups.has(group.sourceId) && (
+                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {group.items.map((novel) => (
+                          <div
+                            key={novel.id}
+                            className="console-card"
+                            style={{ display: 'flex', gap: 14, cursor: 'pointer', padding: 12 }}
+                            onClick={() => onSelectNovel(novel)}
+                          >
+                            <div
+                              style={{
+                                width: 52,
+                                height: 72,
+                                borderRadius: 8,
+                                overflow: 'hidden',
+                                flexShrink: 0,
+                                backgroundColor: 'var(--surface-2)',
+                              }}
+                            >
+                              <img
+                                src={novel.cover || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=400&q=80'}
+                                alt={novel.title}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+                              <h4
+                                className="font-display"
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  color: 'var(--text-1)',
+                                  lineHeight: 1.3,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {novel.title}
+                              </h4>
+                              {novel.author && (
+                                <p style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>
+                                  By {novel.author}
+                                </p>
+                              )}
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  color: 'var(--blue)',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  marginTop: 6,
+                                }}
+                              >
+                                Open Details <ChevronRight size={12} />
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {globalLoading && (
+              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-2)' }}>
+                <RefreshCw size={20} className="spin" style={{ marginBottom: 8 }} />
+                <p style={{ fontSize: 13 }}>Searching across all sources…</p>
+              </div>
+            )}
+
+            {!globalLoading && globalQuery && globalResults.length === 0 && (
+              <div style={{ marginTop: 20, padding: '24px 0', textAlign: 'center', color: 'var(--text-2)' }}>
+                <BookOpen size={24} style={{ marginBottom: 8, color: 'var(--text-3)' }} />
+                <p style={{ fontSize: 13 }}>No results found across any source for &quot;{globalQuery}&quot;.</p>
+              </div>
+            )}
+          </div>
+
           <div style={{ marginBottom: 32 }}>
             <h1 className="font-display" style={{ fontSize: 30, fontWeight: 700, color: 'var(--text-1)' }}>
               Source Repositories & Plugin Engine

@@ -11,7 +11,7 @@ export class TTKanPlugin implements NovelSourcePlugin {
     name: 'TTKan',
     baseUrl: BASE + '/',
     language: 'zh',
-    version: '1.0.0',
+    version: '2.0.0',
     icon: 'https://raw.githubusercontent.com/Parasgaming122/external-sources/main/icons/ttkan.png',
     hasSearch: true,
     charset: 'UTF-8',
@@ -36,45 +36,47 @@ export class TTKanPlugin implements NovelSourcePlugin {
     return text.replace(/\s+/g, ' ').trim();
   }
 
-  /**
-   * Build a cover URL from the slug in a book URL.
-   * URL pattern: /novel/chapters/{slug} → cover: https://static.ttkan.co/cover/{slug}.jpg?w=250&h=300&q=100
-   */
   private buildCoverUrl(bookUrl: string): string | undefined {
     const slugMatch = bookUrl.match(/\/novel\/chapters\/([^/]+)/);
     if (!slugMatch) return undefined;
     return `https://static.ttkan.co/cover/${slugMatch[1]}.jpg?w=250&h=300&q=100`;
   }
 
-  /**
-   * Extract novelId from a book URL like /novel/chapters/{novelId}
-   */
   private extractNovelId(bookUrl: string): string | null {
     const match = bookUrl.match(/\/novel\/chapters\/([^/]+)/);
     return match ? match[1] : null;
   }
 
   private async fetchPage(url: string, retries = 2): Promise<{ html: string; success: boolean }> {
-    const useScraper = await isScraperAvailable();
-    if (useScraper) {
-      for (let i = 0; i < retries; i++) {
-        const result = await scraperFetch(url, { timeout: 45, maxRetries: 1 });
-        if (result.success && result.html && result.html.length > 500) {
-          return { html: result.html, success: true };
+    const isApiUrl = url.includes('/api/');
+    if (!isApiUrl) {
+      const useScraper = await isScraperAvailable();
+      if (useScraper) {
+        for (let i = 0; i < retries; i++) {
+          const result = await scraperFetch(url, { timeout: 45, maxRetries: 1 });
+          if (result.success && result.html && result.html.length > 500) {
+            return { html: result.html, success: true };
+          }
+          if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
         }
-        if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
       }
     }
-    const res = await smartFetch(url);
+    const apiHeaders = isApiUrl ? { 'Accept': 'application/json, text/plain, */*' } : undefined;
+    const res = await smartFetch(url, apiHeaders ? { headers: apiHeaders } : {});
     if (res.success && res.body) return { html: res.body, success: true };
     return { html: '', success: false };
   }
 
-  private parseRankItems(html: string): PluginNovelItem[] {
+  async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
+    const url = `${BASE}/novel/rank?page=${page}`;
+    const { html, success } = await this.fetchPage(url);
+    if (!success) return { items: [], hasNext: false };
+
     const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
-    $('.rank_list > div').each((_, el) => {
+    // Use .rank-item (correct class, not .rank_list > div)
+    $('.rank-item, .rank_list > div, .rank_list div').each((_, el) => {
       const $el = $(el);
       const linkEl = $el.find('a[href*="/novel/chapters/"]').first();
       const href = linkEl.attr('href');
@@ -94,15 +96,6 @@ export class TTKanPlugin implements NovelSourcePlugin {
       }
     });
 
-    return items;
-  }
-
-  async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const url = `${BASE}/novel/rank?page=${page}`;
-    const { html, success } = await this.fetchPage(url);
-    if (!success) return { items: [], hasNext: false };
-
-    const items = this.parseRankItems(html);
     return { items, hasNext: items.length > 0 };
   }
 
@@ -114,8 +107,8 @@ export class TTKanPlugin implements NovelSourcePlugin {
     const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
 
-    // Use context-specific selector to avoid grabbing sidebar/footer .novel_cell
-    $('.pure-g .pure-u-1-1 .novel_cell, .search-result .novel_cell, .novel_cell').each((_, el) => {
+    // Use .novel-cell (hyphen, correct) with fallbacks
+    $('.novel-cell, .novel_cell, .search-result .novel-cell').each((_, el) => {
       const $el = $(el);
       const linkEl = $el.find('a[href*="/novel/chapters/"]').first();
       const href = linkEl.attr('href');
@@ -149,50 +142,85 @@ export class TTKanPlugin implements NovelSourcePlugin {
 
     if (!title) return null;
 
-    // Extract novelId and fetch chapters via API
     const novelId = this.extractNovelId(bookUrl);
     const chapters: PluginChapterItem[] = [];
 
     if (novelId) {
+      // Strategy 1: API endpoint
       try {
         const apiUrl = `${BASE}/api/nq/amp_novel_chapters?language=tw&novel_id=${novelId}`;
         const { html: apiHtml, success: apiSuccess } = await this.fetchPage(apiUrl);
         if (apiSuccess && apiHtml) {
-          // The API returns JSON: {items: [{chapter_name, chapter_id}, ...]}
-          const data = JSON.parse(apiHtml);
-          const chapterList = data?.items || data?.data?.chapter_list || data?.data?.items || data?.chapter_list || data?.chapters || [];
-          if (Array.isArray(chapterList)) {
-            chapterList.forEach((ch: { chapter_name?: string; name?: string; chapter_id?: string | number; id?: number }, idx: number) => {
-              const chTitle = ch.chapter_name || ch.name || `Chapter ${idx + 1}`;
-              const chId = ch.chapter_id || ch.id || idx;
-              const chUrl = `${BASE}/novel/pagea/${novelId}_${chId}.html`;
-              chapters.push({
-                id: Buffer.from(chUrl).toString('base64url'),
-                title: chTitle,
-                url: chUrl,
+          try {
+            const data = JSON.parse(apiHtml);
+            console.log(`[TTKan] API response keys: ${Object.keys(data || {}).join(', ')}`);
+            console.log(`[TTKan] data.items exists: ${Array.isArray(data?.items)}, count: ${data?.items?.length ?? 'N/A'}`);
+            console.log(`[TTKan] data.data exists: ${!!data?.data}, data.data.items exists: ${Array.isArray(data?.data?.items)}`);
+            // The API returns items at root level: { "items": [...] }
+            const chapterList = data?.items || data?.data?.items || data?.data?.chapter_list || data?.chapter_list || data?.chapters || [];
+            console.log(`[TTKan] Resolved chapterList length: ${Array.isArray(chapterList) ? chapterList.length : 'not array'}`);
+            if (Array.isArray(chapterList) && chapterList.length > 0) {
+              chapterList.forEach((ch: Record<string, unknown>, idx: number) => {
+                const chTitle = String(ch.chapter_name || ch.name || ch.title || `Chapter ${idx + 1}`);
+                const chId = ch.chapter_id || ch.id || idx;
+                const chUrl = `${BASE}/novel/pagea/${novelId}_${chId}.html`;
+                chapters.push({
+                  id: Buffer.from(chUrl).toString('base64url'),
+                  title: chTitle,
+                  url: chUrl,
+                });
               });
-            });
+              console.log(`[TTKan] Loaded ${chapters.length} chapters via API`);
+            }
+          } catch (parseErr) {
+            console.error(`[TTKan] API JSON parse failed:`, parseErr);
           }
         }
       } catch (e) {
-        console.error(`[TTKan] Failed to fetch chapter API for ${novelId}:`, e);
+        console.error(`[TTKan] API fetch failed:`, e);
       }
 
-      // Fallback: try to find chapters in the HTML page itself
+      // Strategy 2: If API returned nothing, scrape HTML for chapter links
       if (chapters.length === 0) {
-        $('.chapter-list a, #catalog a, .chapters a').each((_, el) => {
-          const $a = $(el);
+        // Look for any links containing 'pagea' or 'chapter' in the page HTML
+        const pageHtml = html;
+        const $page = cheerio.load(pageHtml);
+        $page('a[href*="pagea"], a[href*="novel/page"]').each((_, el) => {
+          const $a = $page(el);
           const chTitle = this.cleanText($a.text());
           const chHref = $a.attr('href');
-          if (chTitle && chHref) {
+          if (chTitle && chHref && chTitle.length > 1 && chTitle.length < 100) {
             const fullUrl = this.absUrl(chHref);
-            chapters.push({
-              id: Buffer.from(fullUrl).toString('base64url'),
-              title: chTitle,
-              url: fullUrl,
-            });
+            // Avoid duplicates
+            if (!chapters.some(c => c.url === fullUrl)) {
+              chapters.push({
+                id: Buffer.from(fullUrl).toString('base64url'),
+                title: chTitle,
+                url: fullUrl,
+              });
+            }
           }
         });
+
+        // Also check for chapter list in common containers
+        if (chapters.length === 0) {
+          $page('.chapter-list a, #catalog a, .chapters a, .chapter-list li a').each((_, el) => {
+            const $a = $page(el);
+            const chTitle = this.cleanText($a.text());
+            const chHref = $a.attr('href');
+            if (chTitle && chHref && chTitle.length > 1) {
+              const fullUrl = this.absUrl(chHref);
+              if (!chapters.some(c => c.url === fullUrl)) {
+                chapters.push({
+                  id: Buffer.from(fullUrl).toString('base64url'),
+                  title: chTitle,
+                  url: fullUrl,
+                });
+              }
+            }
+          });
+        }
+        console.log(`[TTKan] Loaded ${chapters.length} chapters via HTML scrape`);
       }
     }
 
@@ -219,7 +247,7 @@ export class TTKanPlugin implements NovelSourcePlugin {
     const title = this.cleanText($('h1, h1.chapter-title, .chapter-title').first().text());
 
     $('script, style, ins, .ad, .advertisement').remove();
-    const contentEl = $('.content, .chapter-content, .reader-content').first();
+    const contentEl = $('#content, .content, .chapter-content, .reader-content').first();
 
     if (!contentEl.length) {
       return { title, contentHtml: '<p>Chapter content was empty.</p>', rawText: '' };
@@ -227,14 +255,14 @@ export class TTKanPlugin implements NovelSourcePlugin {
 
     const paragraphs: string[] = [];
     contentEl.find('p').each((_, el) => {
-      const t = $(el).text().trim();
+      const t = $(el).text().trim().replace(/&emsp;/g, '');
       if (t) paragraphs.push(t);
     });
 
     if (paragraphs.length === 0) {
-      const raw = contentEl.text();
-      raw.split(/\n+/).forEach(line => {
-        const trimmed = line.trim();
+      const raw = contentEl.html() || '';
+      raw.split(/<br\s*\/??>|\n+/).forEach(line => {
+        const trimmed = line.replace(/&emsp;/g, '').trim();
         if (trimmed) paragraphs.push(trimmed);
       });
     }

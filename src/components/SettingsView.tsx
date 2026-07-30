@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Sliders,
   ChevronDown,
+  ChevronUp,
   ServerCrash,
   AlertTriangle,
   CircleDot,
@@ -89,6 +90,13 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
   const [pluginSettings, setPluginSettings] = useState<PluginSettingItem[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isPluginListExpanded, setIsPluginListExpanded] = useState(true);
+
+  // Only show the 6 verified working sources in settings
+  const VISIBLE_SOURCE_IDS = new Set(['ixdzs8', 'xbiquge', 'biqugecompany', 'ttkan', 'shuhaige', 'quanben5']);
+  const visiblePluginSettings = pluginSettings.filter(p => VISIBLE_SOURCE_IDS.has(p.id));
+  const enabledCount = visiblePluginSettings.filter(p => p.enabled).length;
+  const totalCount = visiblePluginSettings.length;
 
   /* -------------------------------------------------------------- */
   /*  Fetch stats (polling)                                           */
@@ -195,12 +203,19 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
     saveSettings(next);
   };
 
-  const movePlugin = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= pluginSettings.length) return;
+  const movePlugin = (visibleIndex: number, direction: 'up' | 'down') => {
+    const targetVisibleIndex = direction === 'up' ? visibleIndex - 1 : visibleIndex + 1;
+    if (targetVisibleIndex < 0 || targetVisibleIndex >= visiblePluginSettings.length) return;
+    // Reorder within the full pluginSettings array
     const next = [...pluginSettings];
-    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-    saveSettings(next);
+    const idA = visiblePluginSettings[visibleIndex].id;
+    const idB = visiblePluginSettings[targetVisibleIndex].id;
+    const idxA = next.findIndex(p => p.id === idA);
+    const idxB = next.findIndex(p => p.id === idB);
+    if (idxA >= 0 && idxB >= 0) {
+      [next[idxA], next[idxB]] = [next[idxB], next[idxA]];
+      saveSettings(next);
+    }
   };
 
   const resetPluginOrder = () => {
@@ -230,12 +245,6 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
   const toggleExpanded = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
-
-  /* -------------------------------------------------------------- */
-  /*  Counters for header                                              */
-  /* -------------------------------------------------------------- */
-  const enabledCount = pluginSettings.filter((p) => p.enabled).length;
-  const totalCount = pluginSettings.length;
 
   /* -------------------------------------------------------------- */
   /*  Render                                                           */
@@ -278,17 +287,27 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
               </p>
             </div>
           </div>
-          <button className="btn-secondary" onClick={resetPluginOrder} style={{ fontSize: 12, padding: '6px 12px' }}>
-            <RotateCcw size={14} />
-            <span>Reset Defaults</span>
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn-secondary"
+              onClick={() => setIsPluginListExpanded(!isPluginListExpanded)}
+              style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              {isPluginListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              <span>{isPluginListExpanded ? 'Collapse' : 'Expand'}</span>
+            </button>
+            <button className="btn-secondary" onClick={resetPluginOrder} style={{ fontSize: 12, padding: '6px 12px' }}>
+              <RotateCcw size={14} />
+              <span>Reset Defaults</span>
+            </button>
+          </div>
         </div>
 
         {/* Summary bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {(() => {
             const cfCounts = { none: 0, partial: 0, full: 0, blocked: 0 };
-            pluginSettings.forEach((p) => {
+            visiblePluginSettings.forEach((p) => {
               const src = sourcesMap.get(p.id);
               if (!src) return;
               const key = src.blocked ? 'blocked' : (src.cfBlockLevel || 'none');
@@ -350,8 +369,8 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
               <RefreshCw size={20} className="spin" style={{ display: 'inline-block', marginBottom: 10 }} />
               <p>Loading source plugins…</p>
             </div>
-          ) : (
-            pluginSettings.map((item, index) => {
+          ) : !isPluginListExpanded ? null : (
+            visiblePluginSettings.map((item, index) => {
               const sourceInfo = sourcesMap.get(item.id);
               const name = sourceInfo?.name || item.id;
               const desc = sourceInfo?.description || 'Source scraper plugin';
@@ -471,8 +490,8 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
                         <button
                           className="btn-secondary"
                           onClick={() => movePlugin(index, 'down')}
-                          disabled={index === pluginSettings.length - 1}
-                          style={{ padding: '5px 7px', opacity: index === pluginSettings.length - 1 ? 0.25 : 1 }}
+                          disabled={index === visiblePluginSettings.length - 1}
+                          style={{ padding: '5px 7px', opacity: index === visiblePluginSettings.length - 1 ? 0.25 : 1 }}
                           title="Move Down"
                         >
                           <ArrowDown size={13} />

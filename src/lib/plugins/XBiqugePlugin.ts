@@ -8,7 +8,7 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     name: 'XBiquge (新笔趣阁)',
     baseUrl: 'https://www.xbiquge.info/',
     language: 'zh',
-    version: '8.0.0',
+    version: '9.0.0',
     icon: 'https://www.xbiquge.info/favicon.ico',
     hasSearch: true,
     charset: 'UTF-8',
@@ -30,7 +30,6 @@ export class XBiqugePlugin implements NovelSourcePlugin {
   }
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    // Homepage shows featured novels as <dl> elements, /list1/ to /list8/ are category pages
     const url = page === 1 ? 'https://www.xbiquge.info/' : `https://www.xbiquge.info/list${((page - 1) % 8) + 1}/`;
     const res = await smartFetch(url);
     if (!res.success || !res.body) return { items: [], hasNext: false };
@@ -38,15 +37,12 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    // Verified live 2026-07-30: homepage and /listN/ use <dl> elements
-    // Each <dl> has: <dt><a href="/{cat}/{id}/"><img></a></dt>, <dd><h3><a>TITLE</a></h3></dd>
     $('dl').each((_, el) => {
       const titleEl = $(el).find('dd h3 a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
       const cover = $(el).find('dt a img').attr('src');
 
-      // Author is in dd.book_other (format: "作者：<span>NAME</span>")
       const authorText = $(el).find('dd.book_other').first().text().trim();
       const authorMatch = authorText.match(/作者[：:]?\s*(.+)/);
       const author = authorMatch ? authorMatch[1].trim() : undefined;
@@ -65,13 +61,10 @@ export class XBiqugePlugin implements NovelSourcePlugin {
       }
     });
 
-    return { items, hasNext: true }; // Categories are paginated
+    return { items, hasNext: true };
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    // CORRECT endpoint (verified live 2026-07-28):
-    // GET /search.php?q={UTF8} — returns <dl> elements with search results
-    // OLD endpoint /modules/article/wss.php?keyword= is DEAD (502 Bad Gateway)
     const searchUrl = `https://www.xbiquge.info/search.php?q=${encodeURIComponent(query)}`;
     const res = await smartFetch(searchUrl, {
       headers: { 'Referer': 'https://www.xbiquge.info/' },
@@ -82,7 +75,6 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    // Verified live: search results use <dl> elements
     $('dl').each((_, el) => {
       const titleEl = $(el).find('dd h3 a').first();
       const href = titleEl.attr('href');
@@ -116,7 +108,6 @@ export class XBiqugePlugin implements NovelSourcePlugin {
 
     const $ = cheerio.load(res.body);
 
-    // Book page title format: "第二十二章 解决麻烦-《TITLE》" or just the book name
     let title = $('h1').first().text().trim();
     const bookTitleMatch = title.match(/《(.+?)》/);
     if (bookTitleMatch) {
@@ -128,27 +119,27 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     const summary = $('#intro, .intro, .description, .book-intro').first().text().trim();
 
     const chapters: PluginChapterItem[] = [];
-    const bookPathMatch = bookUrl.match(/(\/\d+\/\d+)\/?$/);
-    const bookPath = bookPathMatch ? bookPathMatch[1] : null;
     const seen = new Set<string>();
 
-    if (bookPath) {
-      // Find all chapter links matching /{num}/{num}/{num}.html pattern
-      // Exclude _2.html, _3.html (pagination suffixes for multi-page chapters)
-      $(`a[href^="${bookPath}/"][href$=".html"]`).each((_, el) => {
-        const chTitle = $(el).text().trim();
-        const chHref = $(el).attr('href');
-        if (chTitle && chHref && !seen.has(chHref) && !/\_\d+\.html$/.test(chHref)) {
-          seen.add(chHref);
-          const fullUrl = this.absUrl(chHref);
-          chapters.push({
-            id: Buffer.from(fullUrl).toString('base64url'),
-            title: chTitle,
-            url: fullUrl,
-          });
-        }
+    // PRIMARY: Use #list dd a — the MAIN chapter list, ordered oldest→newest.
+    // Do NOT use div.book_list li a — that is a sidebar/recent-updates widget (newest-first).
+    $('#list dd a[href$=".html"]').each((_, el) => {
+      const chTitle = $(el).text().trim();
+      const chHref = $(el).attr('href');
+      // Exclude multi-page suffixes (_2.html, _3.html) and index_ links
+      if (!chTitle || !chHref || !/\.html$/.test(chHref)) return;
+      if (/\_\d+\.html$/.test(chHref)) return;
+      if (/^index_/.test(chHref)) return;
+      if (chTitle.length < 1 || chTitle.length > 100) return;
+      if (seen.has(chHref)) return;
+      seen.add(chHref);
+      const fullUrl = this.absUrl(chHref);
+      chapters.push({
+        id: Buffer.from(fullUrl).toString('base64url'),
+        title: chTitle,
+        url: fullUrl,
       });
-    }
+    });
 
     return {
       id: Buffer.from(bookUrl).toString('base64url'),
@@ -166,33 +157,25 @@ export class XBiqugePlugin implements NovelSourcePlugin {
 
   /**
    * Extract chapter text, handling multi-page chapters.
-   * XBiquge splits long chapters across multiple pages:
-   *   page 1: /8/8697/272602.html
-   *   page 2: /8/8697/272602_2.html
-   *   page 3: /8/8697/272602_3.html
-   * Each page has content prefixed with "第(N/M)页" marker which we strip.
+   * Uses #content as primary selector (most reliable on xbiquge).
    */
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    // Fetch page 1
     let res = await smartFetch(chapterUrl, { timeout: 20000 });
     if (!res.success || !res.body) {
       return { contentHtml: '<p>Failed to retrieve chapter content.</p>', rawText: '' };
     }
 
     let $ = cheerio.load(res.body);
-    // Title format: "第二十二章 解决麻烦-《TITLE》" — extract chapter name part
     const rawTitle = $('h1').first().text().trim();
     const titleMatch = rawTitle.match(/^(.+?)[—\-—]《/);
     const title = titleMatch ? titleMatch[1].trim() : rawTitle;
 
     const allLines: string[] = [];
     let pageNum = 1;
-    const MAX_PAGES = 10; // Safety limit
+    const MAX_PAGES = 10;
 
     while (pageNum <= MAX_PAGES) {
       if (pageNum > 1) {
-        // Construct next page URL: strip any existing _N.html suffix first
-        // Handles both '12345.html' and '12345_1.html' base formats
         const baseUrl = chapterUrl.replace(/_\d+\.html$/, '.html').replace(/\.html$/, '');
         const pageUrl = `${baseUrl}_${pageNum}.html`;
         const nextRes = await smartFetch(pageUrl, { timeout: 20000 });
@@ -200,21 +183,23 @@ export class XBiqugePlugin implements NovelSourcePlugin {
         $ = cheerio.load(nextRes.body);
       }
 
-      // Content is in <article class="font_max"> — uses <br> separation, NOT <p> tags
-      const contentEl = $('article.font_max').first();
+      // Primary: #content. Fallback: article.font_max (for older pages)
+      const contentEl = $('#content').first().length
+        ? $('#content').first()
+        : $('article.font_max').first();
+
       if (!contentEl.length) break;
 
-      // Split by <br> tags and clean up
       const rawHtml = contentEl.html() || '';
       const lines = rawHtml
-        .split(/<br\s*\/?>|\n+/)
+        .split(/<br\s*\/??>|\n+/)
         .map((l) => cheerio.load(l).text().trim())
-        .map((l) => l.replace(/第\([^)]*\)/g, ''))  // Strip anti-scraping markers globally
+        .map((l) => l.replace(/&emsp;/g, ''))
+        .map((l) => l.replace(/第\([^)]*\)/g, ''))
         .filter((l) => l.length > 0 && !/^[\s第(）)]+$/i.test(l) && !/^\s*$/.test(l));
 
       allLines.push(...lines);
 
-      // Check if there's a next page: look for _{next}.html link
       const nextPageNum = pageNum + 1;
       const hasMore = $(`a[href$="_${nextPageNum}.html"]`).length > 0;
       if (!hasMore) break;

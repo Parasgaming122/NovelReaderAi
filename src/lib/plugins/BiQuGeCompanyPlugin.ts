@@ -9,6 +9,7 @@ import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail
  */
 const DOMAIN_FALLBACKS = [
   'https://www.biquge.company',
+  'https://www.biquge.tw',
   'https://www.biquge9.com',
   'https://www.biquge.tv',
   'https://www.biquge.co',
@@ -94,7 +95,7 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     return text
       .replace(/https?:\/\/[^\s]+/g, '')
       .replace(/www\.[^\s]+/g, '')
-      .replace(/biquge\.(company|9\.com|tv|co)[^\s]*/gi, '')
+      .replace(/biquge\.(company|tw|9\.com|tv|co)[^\s]*/gi, '')
       .replace(/[\n]{3,}/g, '\n\n')
       .trim();
   }
@@ -199,13 +200,12 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     const chapters: PluginChapterItem[] = [];
     const seen = new Set<string>();
 
-    // Extract all chapter links from <dl><dd> structure
-    // Chapters are listed newest-first, so we reverse them
-    $("dl dd a[href*='/read/'], dl dd a[href*='read/']").each((_, el) => {
+    // PRIMARY: #list dd a — main chapter list
+    // Also try dl dd a[href*='/read/'] as fallback
+    $('#list dd a, dl dd a[href*="/read/"]').each((_, el) => {
       const chTitle = $(el).text().trim();
       const chHref = $(el).attr('href');
       if (!chTitle || !chHref || chTitle.length < 2 || chTitle.length > 100) return;
-      // Skip non-chapter links (开始阅读, ads, external)
       if (/^开始阅读$|\.com|\.net|\.xyz|pozhai|lashuwu|seyazho|35ren/i.test(chTitle)) return;
       if (seen.has(chHref)) return;
       seen.add(chHref);
@@ -215,10 +215,8 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
         url: this.resolveUrl(chHref, base),
       });
     });
-    // Reverse to get ascending order (chapter 1 → latest)
-    chapters.reverse();
 
-    // Fallback: if no chapters found, try broader selectors
+    // Broader fallback if nothing found
     if (chapters.length === 0) {
       $('#list a, dl dd a, .chapter-list a').each((_, el) => {
         const chTitle = $(el).text().trim();
@@ -232,7 +230,15 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
           });
         }
       });
-      chapters.reverse();
+    }
+
+    // Smart sort: detect if newest-first by comparing URL numbers, then reverse only if needed
+    if (chapters.length >= 2) {
+      const firstNum = chapters[0].url.match(/(\d+)\/?$/);
+      const lastNum = chapters[chapters.length - 1].url.match(/(\d+)\/?$/);
+      if (firstNum && lastNum && parseInt(firstNum[1]) > parseInt(lastNum[1])) {
+        chapters.reverse();
+      }
     }
 
     return {
@@ -266,15 +272,17 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     contentEl.find('script, ins, style, .ad, div[style*="display:none"]').remove();
 
     const paragraphs: string[] = [];
+    // Try <p> tags first
     contentEl.find('p').each((_, el) => {
-      const t = $(el).text().trim();
+      const t = $(el).text().replace(/&emsp;/g, '').trim();
       if (t) paragraphs.push(this.cleanText(t));
     });
 
+    // Fallback: split by <br> (handles &emsp;&emsp; indentation)
     if (paragraphs.length === 0) {
-      const text = contentEl.text().trim();
-      text.split(/\n+/).forEach(line => {
-        const trimmed = line.trim();
+      const raw = contentEl.html() || '';
+      raw.split(/<br\s*\/??>|\n+/).forEach(line => {
+        const trimmed = cheerio.load(line).text().replace(/&emsp;/g, '').trim();
         if (trimmed) paragraphs.push(this.cleanText(trimmed));
       });
     }
