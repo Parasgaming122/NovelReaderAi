@@ -14,9 +14,27 @@ export const translatorStats = {
   cacheHits: 0,
 };
 
-async function translateTextChunk(text: string, from = 'zh-CN', to = 'en'): Promise<string> {
+// Translation provider types
+export type TranslationProvider = 'google' | 'openrouter' | 'gemini';
+
+export interface TranslationConfig {
+  provider: TranslationProvider;
+  openRouterApiKey?: string;
+  geminiApiKey?: string;
+}
+
+let currentConfig: TranslationConfig = { provider: 'google' };
+
+export function setTranslationConfig(config: TranslationConfig) {
+  currentConfig = config;
+}
+
+export function getTranslationConfig(): TranslationConfig {
+  return currentConfig;
+}
+
+async function translateTextGoogle(text: string, from = 'zh-CN', to = 'en'): Promise<string> {
   if (!text || !text.trim()) return text;
-  translatorStats.totalCalls++;
   
   try {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(
@@ -40,8 +58,107 @@ async function translateTextChunk(text: string, from = 'zh-CN', to = 'en'): Prom
     }
     return text;
   } catch (err) {
-    console.error('Translation error:', err);
+    console.error('Google translation error:', err);
     return text;
+  }
+}
+
+async function translateTextOpenRouter(text: string, from = 'zh-CN', to = 'en'): Promise<string> {
+  if (!text || !text.trim()) return text;
+  if (!currentConfig.openRouterApiKey) {
+    console.warn('OpenRouter API key not configured, falling back to Google');
+    return translateTextGoogle(text, from, to);
+  }
+
+  try {
+    const prompt = `Translate the following text from ${from} to ${to}. Only return the translation, no explanations:\n\n${text}`;
+    
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentConfig.openRouterApiKey}`,
+        'HTTP-Referer': 'https://novel-console.app',
+        'X-Title': 'Novel Console',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-exp:free',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error('OpenRouter API error:', res.status);
+      return translateTextGoogle(text, from, to);
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || text;
+  } catch (err) {
+    console.error('OpenRouter translation error:', err);
+    return translateTextGoogle(text, from, to);
+  }
+}
+
+async function translateTextGemini(text: string, from = 'zh-CN', to = 'en'): Promise<string> {
+  if (!text || !text.trim()) return text;
+  if (!currentConfig.geminiApiKey) {
+    console.warn('Gemini API key not configured, falling back to Google');
+    return translateTextGoogle(text, from, to);
+  }
+
+  try {
+    const prompt = `Translate the following text from ${from} to ${to}. Only return the translation, no explanations:\n\n${text}`;
+    
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${currentConfig.geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            maxOutputTokens: 2000,
+          },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error('Gemini API error:', res.status);
+      return translateTextGoogle(text, from, to);
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || text;
+  } catch (err) {
+    console.error('Gemini translation error:', err);
+    return translateTextGoogle(text, from, to);
+  }
+}
+
+async function translateTextChunk(text: string, from = 'zh-CN', to = 'en'): Promise<string> {
+  if (!text || !text.trim()) return text;
+  translatorStats.totalCalls++;
+  
+  // Use configured provider
+  switch (currentConfig.provider) {
+    case 'openrouter':
+      return translateTextOpenRouter(text, from, to);
+    case 'gemini':
+      return translateTextGemini(text, from, to);
+    case 'google':
+    default:
+      return translateTextGoogle(text, from, to);
   }
 }
 

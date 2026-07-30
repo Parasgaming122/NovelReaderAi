@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Search, Globe, RefreshCw, ChevronRight, BookOpen } from 'lucide-react';
 import { GroupedSearchResult, NovelItem } from '@/lib/types';
 
@@ -132,9 +133,11 @@ export default function SearchView({
                           position: 'relative',
                         }}
                       >
-                        <img
+                        <Image
                           src={novel.cover || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=400&q=80'}
                           alt={novel.title}
+                          width={160}
+                          height={210}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       </div>

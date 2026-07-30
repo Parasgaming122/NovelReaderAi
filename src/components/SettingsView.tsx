@@ -91,12 +91,34 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isPluginListExpanded, setIsPluginListExpanded] = useState(true);
+  
+  // Translation settings
+  const [translationProvider, setTranslationProvider] = useState<'google' | 'openrouter' | 'gemini'>('google');
+  const [openRouterApiKey, setOpenRouterApiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
 
-  // Only show the 6 verified working sources in settings
-  const VISIBLE_SOURCE_IDS = new Set(['ixdzs8', 'xbiquge', 'biqugecompany', 'ttkan', 'shuhaige', 'quanben5']);
-  const visiblePluginSettings = pluginSettings.filter(p => VISIBLE_SOURCE_IDS.has(p.id));
+  // Show all sources ordered by priority (6 current working first, then multi-HTML, then single-HTML)
+  const visiblePluginSettings = pluginSettings;
   const enabledCount = visiblePluginSettings.filter(p => p.enabled).length;
   const totalCount = visiblePluginSettings.length;
+
+  // Load translation settings from localStorage
+  useEffect(() => {
+    const savedProvider = localStorage.getItem('translation_provider');
+    const savedOpenRouterKey = localStorage.getItem('openrouter_api_key');
+    const savedGeminiKey = localStorage.getItem('gemini_api_key');
+    
+    if (savedProvider) setTranslationProvider(savedProvider as 'google' | 'openrouter' | 'gemini');
+    if (savedOpenRouterKey) setOpenRouterApiKey(savedOpenRouterKey);
+    if (savedGeminiKey) setGeminiApiKey(savedGeminiKey);
+  }, []);
+
+  const saveTranslationSettings = useCallback(() => {
+    localStorage.setItem('translation_provider', translationProvider);
+    localStorage.setItem('openrouter_api_key', openRouterApiKey);
+    localStorage.setItem('gemini_api_key', geminiApiKey);
+    window.dispatchEvent(new Event('translation_settings_updated'));
+  }, [translationProvider, openRouterApiKey, geminiApiKey]);
 
   /* -------------------------------------------------------------- */
   /*  Fetch stats (polling)                                           */
@@ -716,6 +738,123 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
               Retried fallback requests or errors
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Translation Settings */}
+      <div className="console-card plugin-card-static" style={{ padding: 28, marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Zap size={22} style={{ color: 'var(--yellow)' }} />
+            <div>
+              <h2 className="font-display" style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>
+                🌐 Translation Provider Settings
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                Choose translation provider for chapter content. Default is Google Translate (free).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+          {/* Provider Selection */}
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8, display: 'block' }}>
+              Translation Provider
+            </label>
+            <select
+              value={translationProvider}
+              onChange={(e) => setTranslationProvider(e.target.value as 'google' | 'openrouter' | 'gemini')}
+              style={{
+                width: '100%',
+                maxWidth: 300,
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--bg-2)',
+                color: 'var(--text-1)',
+                fontSize: 13,
+              }}
+            >
+              <option value="google">Google Translate (Free, Default)</option>
+              <option value="openrouter">OpenRouter (AI - Requires API Key)</option>
+              <option value="gemini">Google Gemini AI (Requires API Key)</option>
+            </select>
+          </div>
+
+          {/* OpenRouter API Key */}
+          {translationProvider === 'openrouter' && (
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8, display: 'block' }}>
+                OpenRouter API Key
+              </label>
+              <input
+                type="password"
+                value={openRouterApiKey}
+                onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                placeholder="sk-or-..."
+                style={{
+                  width: '100%',
+                  maxWidth: 400,
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-2)',
+                  color: 'var(--text-1)',
+                  fontSize: 13,
+                }}
+              />
+              <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
+                Get your free API key from <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>openrouter.ai</a>
+              </p>
+            </div>
+          )}
+
+          {/* Gemini API Key */}
+          {translationProvider === 'gemini' && (
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8, display: 'block' }}>
+                Google Gemini API Key
+              </label>
+              <input
+                type="password"
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                placeholder="AIza..."
+                style={{
+                  width: '100%',
+                  maxWidth: 400,
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-2)',
+                  color: 'var(--text-1)',
+                  fontSize: 13,
+                }}
+              />
+              <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
+                Get your free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>Google AI Studio</a>
+              </p>
+            </div>
+          )}
+
+          {/* Save Button */}
+          <button
+            className="btn-primary"
+            onClick={saveTranslationSettings}
+            style={{
+              width: 'fit-content',
+              padding: '8px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 8,
+            }}
+          >
+            <CheckCircle2 size={16} />
+            <span>Save Translation Settings</span>
+          </button>
         </div>
       </div>
     </div>

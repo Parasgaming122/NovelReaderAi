@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Globe,
   Search,
@@ -248,9 +249,11 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                       backgroundColor: 'var(--surface-2)',
                     }}
                   >
-                    <img
+                    <Image
                       src={novel.cover || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=400&q=80'}
                       alt={novel.title}
+                      width={80}
+                      height={110}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   </div>
@@ -399,9 +402,11 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                                 backgroundColor: 'var(--surface-2)',
                               }}
                             >
-                              <img
+                              <Image
                                 src={novel.cover || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=400&q=80'}
                                 alt={novel.title}
+                                width={60}
+                                height={72}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
                             </div>
