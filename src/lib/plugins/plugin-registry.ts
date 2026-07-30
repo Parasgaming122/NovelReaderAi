@@ -1,6 +1,9 @@
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail } from './types';
 
-// Working sources (6 current - do not change)
+// ============================================================================
+// WORKING SOURCES (6 current - DO NOT CHANGE)
+// These have complete HTML samples (catalog, search, novel_info, chapter) and work reliably
+// ============================================================================
 import { Ixdzs8Plugin } from './Ixdzs8Plugin';
 import { XBiqugePlugin } from './XBiqugePlugin';
 import { BiQuGeCompanyPlugin } from './BiQuGeCompanyPlugin';
@@ -8,32 +11,44 @@ import { TTKanPlugin } from './TTKanPlugin';
 import { ShuHaiGePlugin } from './ShuHaiGePlugin';
 import { Quanben5Plugin } from './Quanben5Plugin';
 
-// Multi-HTML sources (4+ files - less likely to block app)
+// ============================================================================
+// MULTI-HTML SOURCES (4+ files - less likely to block app)
+// Have multiple HTML samples but may need bypass methods
+// ============================================================================
 import { RayforboePlugin } from './RayforboePlugin';
 
-// Single-HTML sources (homepage only - may block more)
+// ============================================================================
+// SINGLE-HTML SOURCES WITH HTML FOLDERS
+// Only have homepage.html - may work with proper bypass but higher risk of blocking
+// ============================================================================
 import { Novel543Plugin } from './Novel543Plugin';
 import { TimoTxtPlugin } from './TimoTxtPlugin';
-import { Shuba69Plugin } from './Shuba69Plugin';
 import { PiaotiaPlugin } from './PiaotiaPlugin';
 import { PoWanJuanPlugin } from './PoWanJuanPlugin';
 import { Shw5Plugin } from './Shw5Plugin';
 import { SnapdPlugin } from './SnapdPlugin';
 import { SoxsPlugin } from './SoxsPlugin';
 import { TrxsPlugin } from './TrxsPlugin';
-import { TWKanPlugin } from './TWKanPlugin';
 import { WanbenPlugin } from './WanbenPlugin';
 import { ZonghengPlugin } from './ZonghengPlugin';
-import { DdxssPlugin } from './DdxssPlugin';
-import { FanqiePlugin } from './FanqiePlugin';
-import { HaodooPlugin } from './HaodooPlugin';
-import { QimaoPlugin } from './QimaoPlugin';
+import { Shuba69Plugin } from './Shuba69Plugin';
+
+// ============================================================================
+// REMOVED PLUGINS (No HTML folder exists - deleted per guidelines)
+// These plugins were removed because they don't have corresponding HTML samples:
+// - DdxssPlugin (no HTML folder)
+// - FanqiePlugin (no HTML folder)
+// - HaodooPlugin (no HTML folder)
+// - QimaoPlugin (no HTML folder)
+// - TWKanPlugin (no HTML folder)
+// - BiQuGe5200Plugin (no HTML folder)
+// ============================================================================
 
 /**
  * Ordered list of source IDs by priority:
  * 1. Six current working sources (ixdzs8, xbiquge, biqugecompany, ttkan, shuhaige, quanben5)
  * 2. Multi-HTML sources (rayforboe)
- * 3. Single-HTML sources (rest)
+ * 3. Single-HTML sources with HTML folders (sorted alphabetically)
  */
 const SOURCE_PRIORITY_ORDER = [
   // 6 Current working sources (DO NOT CHANGE)
@@ -45,23 +60,18 @@ const SOURCE_PRIORITY_ORDER = [
   'quanben5',
   // Multi-HTML sources
   'rayforboe',
-  // Single-HTML sources
+  // Single-HTML sources (have HTML folders)
   'novel543',
-  'timotxt',
-  'shuba69',
   'piaotia',
   'powanjuan',
+  'shuba69',
   'shw5',
   'snapd',
   'soxs',
+  'timotxt',
   'trxs',
-  'twkan',
   'wanben',
   'zongheng',
-  'ddxss',
-  'fanqie',
-  'haodoo',
-  'qimao',
 ];
 
 /**
@@ -81,25 +91,27 @@ const GROUP_SEARCH_SOURCE_IDS = new Set([
  * Set of source IDs that are blocked by Cloudflare or anti-bot protection.
  * These plugins are registered but return empty results for search/catalog/detail operations.
  * Users can toggle them in settings.
+ * 
+ * Sources WITHOUT HTML folders are removed from the registry entirely.
  */
 const BLOCKED_SOURCE_IDS = new Set([
-  'novel543',    // 403 Forbidden
-  'timotxt',     // 403 Cloudflare Turnstile
-  'shuba69',     // Site Down — returns empty 'OK'
-  'piaotia',     // 403 Forbidden
-  'powanjuan',   // 404 Not Found
-  'shw5',        // 404 Not Found
-  'soxs',        // Domain parked — for sale
-  'twkan',       // 403 Forbidden
-  'wanben',      // 404 Not Found
-  'zongheng',    // 404 — rank pages gone
-  'ddxss',       // Domain parked — fingerprint redirect
-  'fanqie',      // JS-rendered — server-side returns shell only
-  'trxs',        // Now a fan-fiction site in GB2312, not general novels
-  'haodoo',      // Traditional Chinese archive — different site structure
-  'qimao',       // 405 Not Allowed
-  'snapd',       // Search broken (404), catalog only
-  'rayforboe',   // Site changed to quote/essay aggregator, no longer a novel reading site
+  'novel543',    // Has HTML but 403 Forbidden - keep for reference
+  'timotxt',     // Has HTML but 403 Cloudflare Turnstile
+  'piaotia',     // Has HTML but 403 Forbidden
+  'powanjuan',   // Has HTML but 404 Not Found
+  'shw5',        // Has HTML but 404 Not Found
+  'soxs',        // Has HTML but domain parked - for sale
+  'wanben',      // Has HTML but 404 Not Found
+  'zongheng',    // Has HTML but 404 — rank pages gone
+  'trxs',        // Has HTML but now fan-fiction site in GB2312
+  'snapd',       // Has HTML but search broken (404)
+  'rayforboe',   // Has HTML but site changed to quote/essay aggregator
+  'ddxss',       // No HTML - domain parked
+  'fanqie',      // No HTML - JS-rendered
+  'haodoo',      // No HTML - Traditional Chinese archive
+  'qimao',       // No HTML - 405 Not Allowed
+  'twkan',       // No HTML - 403 Forbidden
+  'shuba69',     // Has HTML but site down
 ]);
 
 class PluginRegistry {
@@ -108,7 +120,9 @@ class PluginRegistry {
 
   constructor() {
     // Register all plugins (blocked ones will be disabled below)
-    // Working sources (6 current)
+    // ========================================================================
+    // WORKING SOURCES (6 current - DO NOT CHANGE)
+    // ========================================================================
     this.register(new Ixdzs8Plugin());
     this.register(new XBiqugePlugin());
     this.register(new BiQuGeCompanyPlugin());
@@ -116,26 +130,25 @@ class PluginRegistry {
     this.register(new ShuHaiGePlugin());
     this.register(new Quanben5Plugin());
     
-    // Multi-HTML sources
+    // ========================================================================
+    // MULTI-HTML SOURCES
+    // ========================================================================
     this.register(new RayforboePlugin());
     
-    // Single-HTML sources
+    // ========================================================================
+    // SINGLE-HTML SOURCES (have HTML folders)
+    // ========================================================================
     this.register(new Novel543Plugin());
     this.register(new TimoTxtPlugin());
-    this.register(new Shuba69Plugin());
     this.register(new PiaotiaPlugin());
     this.register(new PoWanJuanPlugin());
     this.register(new Shw5Plugin());
     this.register(new SnapdPlugin());
     this.register(new SoxsPlugin());
     this.register(new TrxsPlugin());
-    this.register(new TWKanPlugin());
     this.register(new WanbenPlugin());
     this.register(new ZonghengPlugin());
-    this.register(new DdxssPlugin());
-    this.register(new FanqiePlugin());
-    this.register(new HaodooPlugin());
-    this.register(new QimaoPlugin());
+    this.register(new Shuba69Plugin());
 
     // Disable all blocked sources by default
     for (const id of BLOCKED_SOURCE_IDS) {

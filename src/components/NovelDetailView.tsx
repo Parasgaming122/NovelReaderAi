@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   ArrowLeft,
   BookOpen,
@@ -161,7 +162,7 @@ export default function NovelDetailView({
               backgroundColor: 'var(--surface-2)',
             }}
           >
-            <img src={cover} alt={novel.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Image src={cover} alt={novel.title} width={180} height={250} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
 
           {/* Detailed Info */}
