@@ -1,44 +1,80 @@
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail } from './types';
 
-// Original 5 plugins
+// Working sources (6 current - do not change)
+import { Ixdzs8Plugin } from './Ixdzs8Plugin';
+import { XBiqugePlugin } from './XBiqugePlugin';
+import { BiQuGeCompanyPlugin } from './BiQuGeCompanyPlugin';
+import { TTKanPlugin } from './TTKanPlugin';
+import { ShuHaiGePlugin } from './ShuHaiGePlugin';
+import { Quanben5Plugin } from './Quanben5Plugin';
+
+// Multi-HTML sources (4+ files - less likely to block app)
+import { RayforboePlugin } from './RayforboePlugin';
+
+// Single-HTML sources (homepage only - may block more)
 import { Novel543Plugin } from './Novel543Plugin';
 import { TimoTxtPlugin } from './TimoTxtPlugin';
 import { Shuba69Plugin } from './Shuba69Plugin';
-import { Ixdzs8Plugin } from './Ixdzs8Plugin';
-import { XBiqugePlugin } from './XBiqugePlugin';
-
-// Batch 1 — 11 new plugins
-import { BiQuGe5200Plugin } from './BiQuGe5200Plugin';
-import { BiQuGeCompanyPlugin } from './BiQuGeCompanyPlugin';
-import { DdxssPlugin } from './DdxssPlugin';
-import { FanqiePlugin } from './FanqiePlugin';
-import { HaodooPlugin } from './HaodooPlugin';
 import { PiaotiaPlugin } from './PiaotiaPlugin';
 import { PoWanJuanPlugin } from './PoWanJuanPlugin';
-import { Quanben5Plugin } from './Quanben5Plugin';
-import { RayforboePlugin } from './RayforboePlugin';
-import { ShuHaiGePlugin } from './ShuHaiGePlugin';
 import { Shw5Plugin } from './Shw5Plugin';
-
-// Batch 2 — 8 new plugins
 import { SnapdPlugin } from './SnapdPlugin';
 import { SoxsPlugin } from './SoxsPlugin';
 import { TrxsPlugin } from './TrxsPlugin';
-import { TTKanPlugin } from './TTKanPlugin';
 import { TWKanPlugin } from './TWKanPlugin';
 import { WanbenPlugin } from './WanbenPlugin';
 import { ZonghengPlugin } from './ZonghengPlugin';
+import { DdxssPlugin } from './DdxssPlugin';
+import { FanqiePlugin } from './FanqiePlugin';
+import { HaodooPlugin } from './HaodooPlugin';
 import { QimaoPlugin } from './QimaoPlugin';
 
 /**
+ * Ordered list of source IDs by priority:
+ * 1. Six current working sources (ixdzs8, xbiquge, biqugecompany, ttkan, shuhaige, quanben5)
+ * 2. Multi-HTML sources (rayforboe)
+ * 3. Single-HTML sources (rest)
+ */
+const SOURCE_PRIORITY_ORDER = [
+  // 6 Current working sources (DO NOT CHANGE)
+  'ixdzs8',
+  'xbiquge',
+  'biqugecompany',
+  'ttkan',
+  'shuhaige',
+  'quanben5',
+  // Multi-HTML sources
+  'rayforboe',
+  // Single-HTML sources
+  'novel543',
+  'timotxt',
+  'shuba69',
+  'piaotia',
+  'powanjuan',
+  'shw5',
+  'snapd',
+  'soxs',
+  'trxs',
+  'twkan',
+  'wanben',
+  'zongheng',
+  'ddxss',
+  'fanqie',
+  'haodoo',
+  'qimao',
+];
+
+/**
  * Set of source IDs allowed for group search (search across all sources).
- * Only these 4 working sources are used in group search to avoid flooding with broken sources.
+ * Only working sources with complete HTML samples are used.
  */
 const GROUP_SEARCH_SOURCE_IDS = new Set([
   'ixdzs8',
+  'xbiquge',
   'biqugecompany',
   'ttkan',
-  'xbiquge',
+  'shuhaige',
+  'quanben5',
 ]);
 
 /**
@@ -47,24 +83,23 @@ const GROUP_SEARCH_SOURCE_IDS = new Set([
  * Users can toggle them in settings.
  */
 const BLOCKED_SOURCE_IDS = new Set([
-  'shuba69',     // Site Down — returns empty 'OK'
-  'qimao',       // 405 Not Allowed
-  'soxs',        // Domain parked — for sale
-  'twkan',       // 403 Forbidden
   'novel543',    // 403 Forbidden
   'timotxt',     // 403 Cloudflare Turnstile
+  'shuba69',     // Site Down — returns empty 'OK'
   'piaotia',     // 403 Forbidden
-  'wanben',      // 404 Not Found
-  'biquge5200',  // 500 Internal Server Error
   'powanjuan',   // 404 Not Found
   'shw5',        // 404 Not Found
+  'soxs',        // Domain parked — for sale
+  'twkan',       // 403 Forbidden
+  'wanben',      // 404 Not Found
+  'zongheng',    // 404 — rank pages gone
   'ddxss',       // Domain parked — fingerprint redirect
   'fanqie',      // JS-rendered — server-side returns shell only
-  'zongheng',    // 404 — rank pages gone
   'trxs',        // Now a fan-fiction site in GB2312, not general novels
   'haodoo',      // Traditional Chinese archive — different site structure
-  'rayforboe',    // Site changed to quote/essay aggregator, no longer a novel reading site
+  'qimao',       // 405 Not Allowed
   'snapd',       // Search broken (404), catalog only
+  'rayforboe',   // Site changed to quote/essay aggregator, no longer a novel reading site
 ]);
 
 class PluginRegistry {
@@ -72,35 +107,35 @@ class PluginRegistry {
   private disabledIds: Set<string> = new Set();
 
   constructor() {
-    // ── Original 5 plugins ────────────────────────────────────────
-    this.register(new Novel543Plugin());
-    this.register(new TimoTxtPlugin());
-    this.register(new Shuba69Plugin());    // BLOCKED: 403
+    // Register all plugins (blocked ones will be disabled below)
+    // Working sources (6 current)
     this.register(new Ixdzs8Plugin());
     this.register(new XBiqugePlugin());
-
-    // ── Batch 1: 11 new plugins ───────────────────────────────────
-    this.register(new BiQuGe5200Plugin());
     this.register(new BiQuGeCompanyPlugin());
+    this.register(new TTKanPlugin());
+    this.register(new ShuHaiGePlugin());
+    this.register(new Quanben5Plugin());
+    
+    // Multi-HTML sources
+    this.register(new RayforboePlugin());
+    
+    // Single-HTML sources
+    this.register(new Novel543Plugin());
+    this.register(new TimoTxtPlugin());
+    this.register(new Shuba69Plugin());
+    this.register(new PiaotiaPlugin());
+    this.register(new PoWanJuanPlugin());
+    this.register(new Shw5Plugin());
+    this.register(new SnapdPlugin());
+    this.register(new SoxsPlugin());
+    this.register(new TrxsPlugin());
+    this.register(new TWKanPlugin());
+    this.register(new WanbenPlugin());
+    this.register(new ZonghengPlugin());
     this.register(new DdxssPlugin());
     this.register(new FanqiePlugin());
     this.register(new HaodooPlugin());
-    this.register(new PiaotiaPlugin());
-    this.register(new PoWanJuanPlugin());
-    this.register(new Quanben5Plugin());
-    this.register(new RayforboePlugin());
-    this.register(new ShuHaiGePlugin());
-    this.register(new Shw5Plugin());
-
-    // ── Batch 2: 8 new plugins ──────────────────────────────────
-    this.register(new SnapdPlugin());
-    this.register(new SoxsPlugin());       // BLOCKED: Timeout
-    this.register(new TrxsPlugin());
-    this.register(new TTKanPlugin());
-    this.register(new TWKanPlugin());      // BLOCKED: 403
-    this.register(new WanbenPlugin());
-    this.register(new ZonghengPlugin());
-    this.register(new QimaoPlugin());      // BLOCKED: 405
+    this.register(new QimaoPlugin());
 
     // Disable all blocked sources by default
     for (const id of BLOCKED_SOURCE_IDS) {
@@ -121,7 +156,7 @@ class PluginRegistry {
   public getAllSourcesWithStatus(orderedIds?: string[]): (PluginSourceInfo & { enabled: boolean })[] {
     const all = orderedIds
       ? orderedIds.map(id => this.plugins.get(id)).filter(Boolean)
-      : Array.from(this.plugins.values());
+      : SOURCE_PRIORITY_ORDER.map(id => this.plugins.get(id)).filter(Boolean);
 
     return all.map(p => ({
       ...p.info,
@@ -133,7 +168,7 @@ class PluginRegistry {
   public getAllSources(orderedIds?: string[]): PluginSourceInfo[] {
     const all = orderedIds
       ? orderedIds.map(id => this.plugins.get(id)).filter(Boolean)
-      : Array.from(this.plugins.values());
+      : SOURCE_PRIORITY_ORDER.map(id => this.plugins.get(id)).filter(Boolean);
 
     return all
       .filter(p => !this.disabledIds.has(p.info.id))
