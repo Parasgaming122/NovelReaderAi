@@ -31,15 +31,40 @@ import { ZonghengPlugin } from './ZonghengPlugin';
 import { QimaoPlugin } from './QimaoPlugin';
 
 /**
+ * Set of source IDs allowed for group search (search across all sources).
+ * Only these 4 working sources are used in group search to avoid flooding with broken sources.
+ */
+const GROUP_SEARCH_SOURCE_IDS = new Set([
+  'ixdzs8',
+  'biqugecompany',
+  'ttkan',
+  'xbiquge',
+]);
+
+/**
  * Set of source IDs that are blocked by Cloudflare or anti-bot protection.
  * These plugins are registered but return empty results for search/catalog/detail operations.
  * Users can toggle them in settings.
  */
 const BLOCKED_SOURCE_IDS = new Set([
-  'shuba69',   // 403 Forbidden
-  'qimao',     // 405 Not Allowed
-  'soxs',      // Timeout (blocked)
-  'twkan',     // 403 Forbidden
+  'shuba69',     // Site Down — returns empty 'OK'
+  'qimao',       // 405 Not Allowed
+  'soxs',        // Domain parked — for sale
+  'twkan',       // 403 Forbidden
+  'novel543',    // 403 Forbidden
+  'timotxt',     // 403 Cloudflare Turnstile
+  'piaotia',     // 403 Forbidden
+  'wanben',      // 404 Not Found
+  'biquge5200',  // 500 Internal Server Error
+  'powanjuan',   // 404 Not Found
+  'shw5',        // 404 Not Found
+  'ddxss',       // Domain parked — fingerprint redirect
+  'fanqie',      // JS-rendered — server-side returns shell only
+  'zongheng',    // 404 — rank pages gone
+  'trxs',        // Now a fan-fiction site in GB2312, not general novels
+  'haodoo',      // Traditional Chinese archive — different site structure
+  'rayforboe',    // Site changed to quote/essay aggregator, no longer a novel reading site
+  'snapd',       // Search broken (404), catalog only
 ]);
 
 class PluginRegistry {
@@ -152,7 +177,8 @@ class PluginRegistry {
         }
       })
     );
-    return results;
+    // Sort: sources with items first (working), then empty sources
+    return results.sort((a, b) => b.items.length - a.items.length);
   }
 
   public async searchSources(query: string, sourceId = 'all', page = 1, orderedIds?: string[]) {
@@ -177,7 +203,11 @@ class PluginRegistry {
       }
     }
 
-    const sources = this.getAllSources(orderedIds);
+    // For group search ('all'), only search the 4 known working sources
+    const allEnabledSources = this.getAllSources(orderedIds);
+    const sources = orderedIds
+      ? allEnabledSources
+      : allEnabledSources.filter((info) => GROUP_SEARCH_SOURCE_IDS.has(info.id));
     const results = await Promise.all(
       sources.map(async (info) => {
         const plugin = this.plugins.get(info.id);
@@ -210,8 +240,11 @@ class PluginRegistry {
   public async findAlternativeSources(chineseTitle: string, excludeSourceId?: string) {
     if (!chineseTitle || !chineseTitle.trim()) return [];
 
+    // Only search alternative sources from the 4 known working sources
     const sources = Array.from(this.plugins.values()).filter(
-      (p) => (!this.disabledIds.has(p.info.id)) && (!excludeSourceId || p.info.id !== excludeSourceId)
+      (p) => (!this.disabledIds.has(p.info.id)) 
+        && (!excludeSourceId || p.info.id !== excludeSourceId)
+        && GROUP_SEARCH_SOURCE_IDS.has(p.info.id)
     );
 
     const alternativeResults = await Promise.all(

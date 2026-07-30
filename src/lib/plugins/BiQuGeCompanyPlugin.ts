@@ -156,30 +156,32 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     const chapters: PluginChapterItem[] = [];
     const seen = new Set<string>();
 
-    // Extract bookId from URL pattern: /book/{id}/ or similar
-    const bookIdMatch = bookUrl.match(/\/book\/(\d+)/);
-
-    // First try a[href*='/read/']
-    $("a[href*='/read/']").each((_, el) => {
+    // Extract all chapter links from <dl><dd> structure
+    // Chapters are listed newest-first, so we reverse them
+    $("dl dd a[href*='/read/'], dl dd a[href*='read/']").each((_, el) => {
       const chTitle = $(el).text().trim();
       const chHref = $(el).attr('href');
-      if (chTitle && chHref && !seen.has(chHref)) {
-        seen.add(chHref);
-        const fullUrl = this.absUrl(chHref);
-        chapters.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
-          title: chTitle,
-          url: fullUrl,
-        });
-      }
+      if (!chTitle || !chHref || chTitle.length < 2 || chTitle.length > 100) return;
+      // Skip non-chapter links (开始阅读, ads, external)
+      if (/^开始阅读$|\\.com|\\.net|\\.xyz|pozhai|lashuwu|seyazho|35ren/i.test(chTitle)) return;
+      if (seen.has(chHref)) return;
+      seen.add(chHref);
+      const fullUrl = this.absUrl(chHref);
+      chapters.push({
+        id: Buffer.from(fullUrl).toString('base64url'),
+        title: chTitle,
+        url: fullUrl,
+      });
     });
+    // Reverse to get ascending order (chapter 1 → latest)
+    chapters.reverse();
 
-    // Fallback to #list a, dl dd a
+    // Fallback: if no chapters found, try broader selectors
     if (chapters.length === 0) {
-      $('#list a, dl dd a').each((_, el) => {
+      $('#list a, dl dd a, .chapter-list a').each((_, el) => {
         const chTitle = $(el).text().trim();
         const chHref = $(el).attr('href');
-        if (chTitle && chHref && !seen.has(chHref)) {
+        if (chTitle && chHref && !/^开始阅读$/.test(chTitle) && !seen.has(chHref)) {
           seen.add(chHref);
           const fullUrl = this.absUrl(chHref);
           chapters.push({
@@ -189,6 +191,7 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
           });
         }
       });
+      chapters.reverse();
     }
 
     return {
@@ -213,7 +216,8 @@ export class BiQuGeCompanyPlugin implements NovelSourcePlugin {
     const $ = cheerio.load(html);
     const title = $('h1, .bookname h1').first().text().trim();
 
-    const contentEl = $('#content, .content').first();
+    // Use specific selectors first — .content is too broad (includes nav), .readcontent is the actual chapter text
+    const contentEl = $('#htmlContent, .readcontent, #content, #TextContent, .content').first();
     if (!contentEl.length) {
       return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
     }

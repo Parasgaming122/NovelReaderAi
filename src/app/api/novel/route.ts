@@ -53,9 +53,10 @@ export async function GET(req: NextRequest) {
     // Translate novel title, author, and summary into English
     const translatedDetail = await translateNovelDetail(detail);
 
-    // Translate ALL chapter titles in batches of 200
+    // Translate ALL chapter titles in batches
+    // Reduced batch size to avoid overwhelming Google Translate rate limits
     if (translatedDetail.chapters && translatedDetail.chapters.length > 0) {
-      const BATCH_SIZE = 200;
+      const BATCH_SIZE = 50;
       const allChapters = translatedDetail.chapters;
       const translatedTitles: string[] = new Array(allChapters.length);
 

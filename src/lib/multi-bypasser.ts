@@ -15,11 +15,28 @@
  */
 
 import { smartFetch, BypassResponse } from '@/lib/bypasser';
-import { Impit } from 'impit';
 import { browserFetch, BrowserFetchResult } from '@/lib/browser-service';
 import { scraperFetch, isScraperAvailable } from '@/lib/scraper-client';
 import { getPluginBypassMethods } from '@/lib/bypass-settings';
 import { BypassMethod } from './plugins/types';
+
+// Impit is a native Rust module — dynamically import to avoid webpack bundling issues
+type ImpitClient = {
+  fetch: (url: string, opts?: Record<string, unknown>) => Promise<{ status: number; text: () => Promise<string>; bytes: () => Promise<Uint8Array>; url?: string }>;
+};
+let _impitInstance: ImpitClient | null = null;
+async function getImpitInstance(): Promise<ImpitClient> {
+  if (!_impitInstance) {
+    const { Impit } = await import('impit');
+    _impitInstance = new Impit({
+      browser: 'chrome',
+      timeout: 20_000,
+      followRedirects: true,
+      headers: { 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8' },
+    }) as unknown as ImpitClient;
+  }
+  return _impitInstance;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,31 +67,13 @@ export interface MultiBypassOptions {
 // Per-method fetch adapters
 // ---------------------------------------------------------------------------
 
-// Shared Impit instance (TLS fingerprint pool is reused across requests)
-let _impitInstance: Impit | null = null;
-function getImpitInstance(): Impit {
-  if (!_impitInstance) {
-    _impitInstance = new Impit({
-      browser: 'chrome',
-      timeout: 20_000,
-      followRedirects: true,
-      headers: {
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-      },
-    });
-  }
-  return _impitInstance;
-}
-
-/**
- * impit adapter — uses Rust-based TLS fingerprint impersonation.
- */
+// impit adapter already defined above — just the fetch function below
 async function impitFetch(
   url: string,
   options: MultiBypassOptions,
 ): Promise<BypassResponse> {
   try {
-    const client = getImpitInstance();
+    const client = await getImpitInstance();
     const res = await client.fetch(url, {
       method: (options.method || 'GET') as any,
       headers: options.headers as any,

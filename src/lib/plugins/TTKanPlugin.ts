@@ -157,13 +157,14 @@ export class TTKanPlugin implements NovelSourcePlugin {
         const apiUrl = `${BASE}/api/nq/amp_novel_chapters?language=tw&novel_id=${novelId}`;
         const { html: apiHtml, success: apiSuccess } = await this.fetchPage(apiUrl);
         if (apiSuccess && apiHtml) {
-          // The API returns JSON
+          // The API returns JSON: {items: [{chapter_name, chapter_id}, ...]}
           const data = JSON.parse(apiHtml);
-          const chapterList = data?.data?.chapter_list || data?.chapter_list || data?.chapters || [];
+          const chapterList = data?.items || data?.data?.chapter_list || data?.data?.items || data?.chapter_list || data?.chapters || [];
           if (Array.isArray(chapterList)) {
-            chapterList.forEach((ch: { chapter_name?: string; name?: string; chapter_id?: string; id?: number }, idx: number) => {
+            chapterList.forEach((ch: { chapter_name?: string; name?: string; chapter_id?: string | number; id?: number }, idx: number) => {
               const chTitle = ch.chapter_name || ch.name || `Chapter ${idx + 1}`;
-              const chUrl = `${BASE}/novel/pagea/${novelId}_${idx}.html`;
+              const chId = ch.chapter_id || ch.id || idx;
+              const chUrl = `${BASE}/novel/pagea/${novelId}_${chId}.html`;
               chapters.push({
                 id: Buffer.from(chUrl).toString('base64url'),
                 title: chTitle,

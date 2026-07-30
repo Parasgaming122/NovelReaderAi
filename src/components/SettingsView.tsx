@@ -265,7 +265,7 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
       </div>
 
       {/* Plugin Management & Priority Reordering */}
-      <div className="console-card" style={{ padding: 28, marginBottom: 28 }}>
+      <div className="console-card plugin-card-static" style={{ padding: 28, marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Sliders size={22} style={{ color: 'var(--blue)' }} />
@@ -344,7 +344,7 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
         </div>
 
         {/* Plugin list — scrollable */}
-        <div style={{ maxHeight: 520, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, scrollbarWidth: 'thin', scrollbarColor: 'var(--text-3) transparent' }}>
+        <div className="plugin-list-scroll" style={{ maxHeight: 520, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
           {sourcesLoading ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-3)', fontSize: 14 }}>
               <RefreshCw size={20} className="spin" style={{ display: 'inline-block', marginBottom: 10 }} />
@@ -364,31 +364,33 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
               return (
                 <div
                   key={item.id}
+                  className="plugin-list-item"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    backgroundColor: item.enabled ? 'var(--surface-1)' : 'var(--surface-2)',
-                    opacity: item.enabled ? 1 : 0.55,
-                    borderRadius: 14,
-                    border: '1px solid var(--border)',
-                    transition: 'all 0.2s ease',
+                    backgroundColor: item.enabled ? 'var(--surface)' : 'var(--surface-2)',
+                    opacity: item.enabled ? 1 : 0.5,
+                    borderRadius: 12,
+                    border: item.enabled ? '1px solid var(--border)' : '1px dashed var(--border-2)',
+                    transition: 'opacity 0.2s ease, border-color 0.2s ease',
                     overflow: 'hidden',
                   }}
                 >
                   {/* Main row */}
                   <div
+                    className="plugin-list-row"
                     style={{
                       display: 'flex',
-                      alignItems: 'flex-start',
+                      alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '14px 16px',
-                      gap: 12,
+                      padding: '10px 14px',
+                      gap: 10,
                       cursor: availableMethods.length > 0 ? 'pointer' : 'default',
                     }}
                     onClick={() => availableMethods.length > 0 && toggleExpanded(item.id)}
                   >
                     {/* Left: priority + info */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 0, paddingTop: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
                       {/* Priority badge */}
                       <div
                         style={{
@@ -453,7 +455,7 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
 
                     {/* Right: actions */}
                     <div
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, alignSelf: 'flex-start', marginLeft: 4, paddingTop: 2 }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div style={{ display: 'flex', gap: 2 }}>
@@ -511,8 +513,9 @@ export default function SettingsView({ onPluginSettingsChange }: SettingsViewPro
                   {/* Expanded: Bypass Method Selector */}
                   {isExpanded && availableMethods.length > 0 && (
                     <div
+                      className="plugin-bypass-panel"
                       style={{
-                        padding: '14px 16px 16px 16px',
+                        padding: '12px 14px 14px 14px',
                         borderTop: '1px solid var(--border)',
                         backgroundColor: 'var(--surface-2)',
                       }}

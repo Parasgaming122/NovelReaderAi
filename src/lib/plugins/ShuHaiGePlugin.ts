@@ -1,6 +1,5 @@
 import * as cheerio from 'cheerio';
 import { smartFetch } from '@/lib/bypasser';
-import { scraperFetch, isScraperAvailable } from '@/lib/scraper-client';
 import { NovelSourcePlugin, PluginSourceInfo, PluginNovelItem, PluginNovelDetail, PluginChapterItem } from './types';
 
 const BASE = 'https://m.shuhaige.net';
@@ -11,16 +10,16 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
     name: '书海阁 (ShuHaiGe)',
     baseUrl: BASE + '/',
     language: 'zh',
-    version: '1.0.0',
+    version: '2.0.0',
     icon: 'https://raw.githubusercontent.com/Parasgaming122/external-sources/main/icons/shuhaige.png',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'ShuHaiGe mobile novel site with catalog and search.',
+    description: '书海阁 mobile novel site. Catalog, search, and reading all accessible.',
     blocked: false,
     blockedReason: '',
     cfBlockLevel: 'none',
-    cfStatus: 'Accessible — POST-based search requires special handling',
-    recommendedBypassMethods: ['smartFetch', 'impit'],
+    cfStatus: 'Accessible — no Cloudflare protection detected',
+    recommendedBypassMethods: ['smartFetch'],
     availableBypassMethods: ['smartFetch', 'impit', 'browser', 'scraper', 'clientProxy'],
   };
 
@@ -32,22 +31,6 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
     return BASE + '/' + href;
   }
 
-  private async fetchPage(url: string, retries = 2): Promise<{ html: string; success: boolean }> {
-    const useScraper = await isScraperAvailable();
-    if (useScraper) {
-      for (let i = 0; i < retries; i++) {
-        const result = await scraperFetch(url, { timeout: 45, maxRetries: 1 });
-        if (result.success && result.html && result.html.length > 500) {
-          return { html: result.html, success: true };
-        }
-        if (i < retries - 1) await new Promise(r => setTimeout(r, 1000));
-      }
-    }
-    const res = await smartFetch(url);
-    if (res.success && res.body) return { html: res.body, success: true };
-    return { html: '', success: false };
-  }
-
   private cleanText(text: string): string {
     return text
       .replace(/https?:\/\/[^\s]+/g, '')
@@ -57,27 +40,52 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
       .trim();
   }
 
-  async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const url = `${BASE}/shuku/`;
-    const { html, success } = await this.fetchPage(url);
-    if (!success) return { items: [], hasNext: false };
+  /**
+   * Extract the bookId from a ShuHaiGe URL.
+   * URL patterns:
+   *   /{bookId}/           → book chapter list page
+   *   /{bookId}/{chId}.html → chapter page
+   *   /shu_{bookId}.html   → book info page
+   *   /txt_{bookId}.html   → full text page
+   */
+  private extractBookId(url: string): string | null {
+    const match = url.match(/\/(\d+)\//) || url.match(/\/(\d+)\.html$/) || url.match(/shu_(\d+)\.html/);
+    return match ? match[1] : null;
+  }
 
-    const $ = cheerio.load(html);
+  async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
+    // Verified 2026-07-30: /shuku/0_{cat}_0_{page}.html
+    // Category 0 = all categories
+    const url = `${BASE}/shuku/0_0_0_${page}.html`;
+    const res = await smartFetch(url);
+    if (!res.success || !res.body) return { items: [], hasNext: false };
+
+    const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    $('ul.vlist li, ul.cover li').each((_, el) => {
-      const linkEl = $(el).find('a').first();
-      const title = linkEl.text().trim();
-      const href = linkEl.attr('href');
-      const cover = $(el).find('img').attr('src');
+    // Each book is in a list item with a link like /{bookId}/{chapterId}.html
+    // We need to extract the bookId and build the book info URL
+    const seen = new Set<string>();
+    $('a[href*="/"]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const bookIdMatch = href.match(/^\/(\d+)\/\d+\.html$/);
+      if (!bookIdMatch) return;
+      const bookId = bookIdMatch[1];
+      if (seen.has(bookId)) return;
+      seen.add(bookId);
 
-      if (title && href) {
-        const fullUrl = this.absUrl(href);
+      // Get the parent element for more info
+      const $parent = $(el).closest('li, div, tr');
+      const title = $(el).text().trim();
+      const cover = $parent.find('img').first().attr('src');
+
+      if (title && title.length > 2 && title.length < 100) {
+        const bookUrl = `${BASE}/${bookId}/`;
         items.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
+          id: Buffer.from(bookUrl).toString('base64url'),
           title,
           chineseTitle: title,
-          url: fullUrl,
+          url: bookUrl,
           cover: cover ? this.absUrl(cover) : undefined,
           sourceId: this.info.id,
           sourceName: this.info.name,
@@ -85,39 +93,19 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
       }
     });
 
-    // Fallback: a[href*="shu_"]
-    if (items.length === 0) {
-      $("a[href*='shu_']").each((_, el) => {
-        const title = $(el).text().trim();
-        const href = $(el).attr('href');
-        if (title && href && title.length > 2) {
-          const fullUrl = this.absUrl(href);
-          items.push({
-            id: Buffer.from(fullUrl).toString('base64url'),
-            title,
-            chineseTitle: title,
-            url: fullUrl,
-            sourceId: this.info.id,
-            sourceName: this.info.name,
-          });
-        }
-      });
-    }
-
-    return { items, hasNext: false };
+    return { items, hasNext: items.length >= 20 };
   }
 
-  async getCatalogSearch(query: string, _page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    const searchUrl = `${BASE}/search.html`;
+  async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
+    // Verified 2026-07-30: POST to /search.html
     let html = '';
     let success = false;
 
     try {
-      // POST search — use smartFetch directly (scraperFetch doesn't support POST)
-      const res = await smartFetch(searchUrl, {
+      const res = await smartFetch(`${BASE}/search.html`, {
         method: 'POST',
         body: new URLSearchParams({ searchkey: query }).toString(),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': BASE },
       });
       if (res.success && res.body) {
         html = res.body;
@@ -129,20 +117,28 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
 
     const $ = cheerio.load(html);
     const items: PluginNovelItem[] = [];
+    const seen = new Set<string>();
 
-    $('ul.vlist li, ul.cover li').each((_, el) => {
-      const linkEl = $(el).find('a').first();
-      const title = linkEl.text().trim();
-      const href = linkEl.attr('href');
-      const cover = $(el).find('img').attr('src');
+    // Search results link to /{bookId}/{chapterId}.html
+    $('a[href]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const bookIdMatch = href.match(/^\/(\d+)\/\d+\.html$/);
+      if (!bookIdMatch) return;
+      const bookId = bookIdMatch[1];
+      if (seen.has(bookId)) return;
+      seen.add(bookId);
 
-      if (title && href) {
-        const fullUrl = this.absUrl(href);
+      const title = $(el).text().trim();
+      const $parent = $(el).closest('li, div, tr');
+      const cover = $parent.find('img').first().attr('src');
+
+      if (title && title.length > 2 && title.length < 100) {
+        const bookUrl = `${BASE}/${bookId}/`;
         items.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
+          id: Buffer.from(bookUrl).toString('base64url'),
           title,
           chineseTitle: title,
-          url: fullUrl,
+          url: bookUrl,
           cover: cover ? this.absUrl(cover) : undefined,
           sourceId: this.info.id,
           sourceName: this.info.name,
@@ -154,29 +150,52 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
   }
 
   async getBookDetails(bookUrl: string): Promise<PluginNovelDetail | null> {
-    const { html, success } = await this.fetchPage(bookUrl);
-    if (!success) return null;
+    // bookUrl format: https://m.shuhaige.net/{bookId}/
+    // This page has chapter list links
+    // Book info page: /shu_{bookId}.html
+    const bookId = this.extractBookId(bookUrl);
+    if (!bookId) return null;
 
-    const $ = cheerio.load(html);
-    const title = $('h1, .detail h2, .book-title, .name strong').first().text().trim();
+    // Fetch book info page
+    const infoUrl = `${BASE}/shu_${bookId}.html`;
+    const infoRes = await smartFetch(infoUrl);
+    if (!infoRes.success || !infoRes.body) return null;
+
+    const $info = cheerio.load(infoRes.body);
+    const title = $info('h1, .book-name, .name').first().text().trim();
     if (!title) return null;
 
-    const cover = $('.cover img, .detail img').first().attr('src');
-    const summary = $('.intro, .desc p, .description, .detail_info p').first().text().trim();
+    const cover = $info('.cover img, .book-img img, img').first().attr('src');
+    const summary = $info('.intro, .desc p, .description').first().text().trim();
+    const author = $info('.author, .book-author').first().text().replace(/作者[：:]/, '').trim();
 
+    // Fetch chapter list page
+    const listUrl = `${BASE}/${bookId}/`;
+    const listRes = await smartFetch(listUrl);
     const chapters: PluginChapterItem[] = [];
-    $('.chapter-list a, .chapter a, #chapterlist a').each((_, el) => {
-      const chTitle = $(el).text().trim();
-      const chHref = $(el).attr('href');
-      if (chTitle && chHref) {
-        const fullUrl = this.absUrl(chHref);
-        chapters.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
-          title: chTitle,
-          url: fullUrl,
-        });
-      }
-    });
+
+    if (listRes.success && listRes.body) {
+      const $list = cheerio.load(listRes.body);
+      // Chapter links: /{bookId}/{chapterId}.html
+      const seen = new Set<string>();
+      $list('a[href*="/' + bookId + '/"]').each((_, el) => {
+        const href = $list(el).attr('href') || '';
+        const chMatch = href.match(/^\/(\d+)\/(\d+)\.html$/);
+        if (!chMatch || chMatch[1] !== bookId) return;
+        if (seen.has(href)) return;
+        seen.add(href);
+
+        const chTitle = $list(el).text().trim();
+        if (chTitle && chTitle.length > 0 && chTitle.length < 100) {
+          const fullUrl = this.absUrl(href);
+          chapters.push({
+            id: Buffer.from(fullUrl).toString('base64url'),
+            title: chTitle,
+            url: fullUrl,
+          });
+        }
+      });
+    }
 
     return {
       id: Buffer.from(bookUrl).toString('base64url'),
@@ -184,6 +203,7 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
       chineseTitle: title,
       url: bookUrl,
       cover: cover ? this.absUrl(cover) : undefined,
+      author: author || undefined,
       summary: this.cleanText(summary),
       sourceId: this.info.id,
       sourceName: this.info.name,
@@ -192,15 +212,15 @@ export class ShuHaiGePlugin implements NovelSourcePlugin {
   }
 
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    const { html, success } = await this.fetchPage(chapterUrl);
-    if (!success) {
+    const res = await smartFetch(chapterUrl);
+    if (!res.success || !res.body) {
       return { contentHtml: '<p>Failed to retrieve chapter content.</p>', rawText: '' };
     }
 
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(res.body);
     const title = $('h1, .chapter-title').first().text().trim();
 
-    const contentEl = $('#content, .content').first();
+    const contentEl = $('#content, .content, .read-content').first();
     if (!contentEl.length) {
       return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
     }

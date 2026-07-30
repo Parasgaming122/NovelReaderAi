@@ -282,8 +282,11 @@ body {
 }
 
 .console-card:hover {
-  transform: translateY(-2px);
   border-color: var(--border-2);
+}
+
+.console-card:not(.plugin-card-static):hover {
+  transform: translateY(-2px);
 }
 
 /* KPI Strips */
@@ -474,4 +477,53 @@ body {
 
 .btn-secondary:active {
   transform: scale(0.96);
+}
+
+/* ── Plugin List Styles ── */
+.plugin-list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-2) transparent;
+}
+
+.plugin-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.plugin-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.plugin-list-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 3px;
+}
+
+.plugin-list-item {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plugin-list-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.plugin-list-row {
+  transition: background-color 0.15s ease;
+}
+
+.plugin-list-row:hover {
+  background-color: var(--hover);
+}
+
+.plugin-bypass-panel {
+  animation: panelSlideDown 0.2s ease-out;
+}
+
+@keyframes panelSlideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+  }
 }

@@ -215,13 +215,50 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     };
   }
 
+  /**
+   * Handle ixdzs8's JavaScript challenge redirect.
+   * Chapter pages return a JS challenge: token = "..."; window.location.href = pathname + "?challenge=" + encodeURIComponent(token)
+   * We need to detect this and auto-follow the redirect.
+   */
+  private async resolveChallenge(url: string, body: string): Promise<{ url: string; body: string } | null> {
+    const tokenMatch = body.match(/token\s*=\s*"([^"]+)"/);
+    if (!tokenMatch) return null;
+    const token = tokenMatch[1];
+    const challengeUrl = `${url}?challenge=${encodeURIComponent(token)}`;
+    const res = await smartFetch(challengeUrl, {
+      timeout: 20000,
+      headers: { 'Referer': url },
+    });
+    if (res.success && res.body) {
+      // Check if still a challenge (double redirect)
+      const secondChallenge = await this.resolveChallenge(challengeUrl, res.body);
+      if (secondChallenge) return secondChallenge;
+      return { url: challengeUrl, body: res.body };
+    }
+    return null;
+  }
+
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
     let res = await smartFetch(chapterUrl, { timeout: 20000 });
-    
-    // Retry once with delay if first attempt fails or returns empty
+
+    if (res.success && res.body) {
+      // Check for JS challenge redirect
+      const challenge = await this.resolveChallenge(chapterUrl, res.body);
+      if (challenge) {
+        res = { success: true, status: 200, body: challenge.body, url: challenge.url, tierUsed: res.tierUsed };
+      }
+    }
+
+    // Retry once if still empty
     if (!res.success || !res.body) {
       await new Promise(r => setTimeout(r, 1500));
       res = await smartFetch(chapterUrl, { timeout: 20000 });
+      if (res.success && res.body) {
+        const challenge = await this.resolveChallenge(chapterUrl, res.body);
+        if (challenge) {
+          res = { success: true, status: 200, body: challenge.body, url: challenge.url, tierUsed: res.tierUsed };
+        }
+      }
     }
 
     if (!res.success || !res.body) {
@@ -229,34 +266,36 @@ export class Ixdzs8Plugin implements NovelSourcePlugin {
     }
 
     const $ = cheerio.load(res.body);
-    const title = $('h1.chapter-title, h1').first().text().trim();
+    // Correct selector: h1.page-d-name
+    const title = $('h1.page-d-name, h1').first().text().trim();
 
-    // Remove ads, scripts, and noise
-    $('.content script, .read_content script, .p_text script, style, ins, .ad, .gadBlock').remove();
-    
-    // Try multiple content selectors — ixdzs8 may use different ones
-    const contentEl = $('.content, .read_content, .p_text, #content, #chaptercontent, .chapter-content, .txtnav').first();
+    // Correct content selector: article.page-content section
+    const contentEl = $('article.page-content section, article.page-content, .page-content section, .page-content').first();
 
     if (!contentEl.length) {
-      // Last resort: try to find any element with substantial text
-      const bodyText = $('body').text().trim();
-      if (bodyText.length < 100) {
-        return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
-      }
-      const lines = bodyText.split(/\n+/).map(l => l.trim()).filter(l => l.length > 5);
-      const contentHtml = lines.map(line => `<p>${line}</p>`).join('');
-      return { title, contentHtml, rawText: lines.join('\n\n') };
+      return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
     }
 
-    const raw = contentEl.html() || '';
-    const lines = raw.split(/<br\s*\/?>|\n+/).map((l) => cheerio.load(l).text().trim()).filter(Boolean);
+    // Extract paragraphs from <p> tags
+    const paragraphs: string[] = [];
+    contentEl.find('p').each((_, el) => {
+      const t = $(el).text().trim();
+      if (t) paragraphs.push(t);
+    });
 
-    if (lines.length === 0) {
+    // Fallback: split by <br> or \n
+    if (paragraphs.length === 0) {
+      const raw = contentEl.html() || '';
+      const lines = raw.split(/<br\s*\/?>|\n+/).map((l) => cheerio.load(l).text().trim()).filter(Boolean);
+      paragraphs.push(...lines);
+    }
+
+    if (paragraphs.length === 0) {
       return { title, contentHtml: '<p>Chapter text was empty after parsing.</p>', rawText: '' };
     }
 
-    const contentHtml = lines.map((line) => `<p>${line}</p>`).join('');
-    const rawText = lines.join('\n\n');
+    const contentHtml = paragraphs.map((line) => `<p>${line}</p>`).join('\n');
+    const rawText = paragraphs.join('\n\n');
 
     return { title, contentHtml, rawText };
   }

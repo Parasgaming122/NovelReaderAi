@@ -8,15 +8,15 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     name: 'XBiquge (新笔趣阁)',
     baseUrl: 'https://www.xbiquge.info/',
     language: 'zh',
-    version: '6.0.0',
+    version: '8.0.0',
     icon: 'https://www.xbiquge.info/favicon.ico',
     hasSearch: true,
     charset: 'UTF-8',
-    description: 'High-speed Chinese web novel mirror. Multiple mirror domains available.',
+    description: 'Popular Chinese web novel site. Catalog, search, chapters, and text all accessible via smartFetch. Multi-page chapter support.',
     blocked: false,
     blockedReason: '',
     cfBlockLevel: 'none',
-    cfStatus: 'No Cloudflare — accessible via smartFetch. Mirror: xbiquge.info works.',
+    cfStatus: 'Fully accessible — no Cloudflare protection detected',
     recommendedBypassMethods: ['smartFetch'],
     availableBypassMethods: ['smartFetch', 'impit'],
   };
@@ -30,35 +30,42 @@ export class XBiqugePlugin implements NovelSourcePlugin {
   }
 
   async getCatalogList(page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
-    // Homepage shows featured novels as <dl> elements
-    const url = page === 1 ? 'https://www.xbiquge.info/' : `https://www.xbiquge.info/xquanben/${page}.html`;
+    // Homepage shows featured novels as <dl> elements, /list1/ to /list8/ are category pages
+    const url = page === 1 ? 'https://www.xbiquge.info/' : `https://www.xbiquge.info/list${((page - 1) % 8) + 1}/`;
     const res = await smartFetch(url);
     if (!res.success || !res.body) return { items: [], hasNext: false };
 
     const $ = cheerio.load(res.body);
     const items: PluginNovelItem[] = [];
 
-    // Homepage/catalog uses <dl> elements (verified live: 12 <dl> items on homepage)
+    // Verified live 2026-07-30: homepage and /listN/ use <dl> elements
+    // Each <dl> has: <dt><a href="/{cat}/{id}/"><img></a></dt>, <dd><h3><a>TITLE</a></h3></dd>
     $('dl').each((_, el) => {
-      const titleEl = $(el).find('h3 a, dd a').first();
+      const titleEl = $(el).find('dd h3 a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
       const cover = $(el).find('dt a img').attr('src');
 
-      if (title && href && href.startsWith('/') && !title.includes('首页') && title.length > 1) {
+      // Author is in dd.book_other (format: "作者：<span>NAME</span>")
+      const authorText = $(el).find('dd.book_other').first().text().trim();
+      const authorMatch = authorText.match(/作者[：:]?\s*(.+)/);
+      const author = authorMatch ? authorMatch[1].trim() : undefined;
+
+      if (title && href && href.startsWith('/') && href.match(/^\/\d+\/\d+\/?$/) && title.length > 1) {
         items.push({
           id: Buffer.from(this.absUrl(href)).toString('base64url'),
           title,
           chineseTitle: title,
           url: this.absUrl(href),
           cover: cover ? this.absUrl(cover) : undefined,
+          author,
           sourceId: this.info.id,
           sourceName: this.info.name,
         });
       }
     });
 
-    return { items, hasNext: items.length > 0 };
+    return { items, hasNext: true }; // Categories are paginated
   }
 
   async getCatalogSearch(query: string, page = 1): Promise<{ items: PluginNovelItem[]; hasNext: boolean }> {
@@ -76,14 +83,12 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     const items: PluginNovelItem[] = [];
 
     // Verified live: search results use <dl> elements
-    // Each <dl> contains: <dt><a href="..."><img></a></dt> and <dd><h3><a>TITLE</a></h3></dd>
     $('dl').each((_, el) => {
       const titleEl = $(el).find('dd h3 a').first();
       const href = titleEl.attr('href');
       const title = titleEl.text().trim();
       const cover = $(el).find('dt a img').attr('src');
 
-      // Author is in dd.book_other > span (format: "作者：<span>NAME</span>")
       const authorText = $(el).find('dd.book_other').first().text().trim();
       const authorMatch = authorText.match(/作者[：:]?\s*(.+)/);
       const author = authorMatch ? authorMatch[1].trim() : undefined;
@@ -102,7 +107,6 @@ export class XBiqugePlugin implements NovelSourcePlugin {
       }
     });
 
-    // NO heuristic fallback — return exactly what search results contain
     return { items, hasNext: false };
   }
 
@@ -111,24 +115,40 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     if (!res.success || !res.body) return null;
 
     const $ = cheerio.load(res.body);
-    const title = $('#info h1, .book-info h1, h1').first().text().trim();
-    const cover = $('#fmimg img, .book-img img').attr('src');
-    const author = $('#info p').first().text().replace(/作\s*者[：:]/, '').trim();
-    const summary = $('#intro, .book-intro, #description').text().trim();
+
+    // Book page title format: "第二十二章 解决麻烦-《TITLE》" or just the book name
+    let title = $('h1').first().text().trim();
+    const bookTitleMatch = title.match(/《(.+?)》/);
+    if (bookTitleMatch) {
+      title = bookTitleMatch[1];
+    }
+    if (!title) return null;
+
+    const cover = $('dl dt a img, .book_info img, img').first().attr('src');
+    const summary = $('#intro, .intro, .description, .book-intro').first().text().trim();
 
     const chapters: PluginChapterItem[] = [];
-    $('#list dl dd a, .chapter-list li a').each((_, el) => {
-      const chTitle = $(el).text().trim();
-      const chHref = $(el).attr('href');
-      if (chTitle && chHref) {
-        const fullUrl = this.absUrl(chHref);
-        chapters.push({
-          id: Buffer.from(fullUrl).toString('base64url'),
-          title: chTitle,
-          url: fullUrl,
-        });
-      }
-    });
+    const bookPathMatch = bookUrl.match(/(\/\d+\/\d+)\/?$/);
+    const bookPath = bookPathMatch ? bookPathMatch[1] : null;
+    const seen = new Set<string>();
+
+    if (bookPath) {
+      // Find all chapter links matching /{num}/{num}/{num}.html pattern
+      // Exclude _2.html, _3.html (pagination suffixes for multi-page chapters)
+      $(`a[href^="${bookPath}/"][href$=".html"]`).each((_, el) => {
+        const chTitle = $(el).text().trim();
+        const chHref = $(el).attr('href');
+        if (chTitle && chHref && !seen.has(chHref) && !/\_\d+\.html$/.test(chHref)) {
+          seen.add(chHref);
+          const fullUrl = this.absUrl(chHref);
+          chapters.push({
+            id: Buffer.from(fullUrl).toString('base64url'),
+            title: chTitle,
+            url: fullUrl,
+          });
+        }
+      });
+    }
 
     return {
       id: Buffer.from(bookUrl).toString('base64url'),
@@ -136,7 +156,7 @@ export class XBiqugePlugin implements NovelSourcePlugin {
       chineseTitle: title,
       url: bookUrl,
       cover: cover ? this.absUrl(cover) : undefined,
-      author: author || 'Unknown Author',
+      author: 'Unknown Author',
       summary,
       sourceId: this.info.id,
       sourceName: this.info.name,
@@ -144,27 +164,67 @@ export class XBiqugePlugin implements NovelSourcePlugin {
     };
   }
 
+  /**
+   * Extract chapter text, handling multi-page chapters.
+   * XBiquge splits long chapters across multiple pages:
+   *   page 1: /8/8697/272602.html
+   *   page 2: /8/8697/272602_2.html
+   *   page 3: /8/8697/272602_3.html
+   * Each page has content prefixed with "第(N/M)页" marker which we strip.
+   */
   async getChapterText(chapterUrl: string): Promise<{ title?: string; contentHtml: string; rawText: string }> {
-    const res = await smartFetch(chapterUrl);
+    // Fetch page 1
+    let res = await smartFetch(chapterUrl, { timeout: 20000 });
     if (!res.success || !res.body) {
       return { contentHtml: '<p>Failed to retrieve chapter content.</p>', rawText: '' };
     }
 
-    const $ = cheerio.load(res.body);
-    const title = $('.bookname h1, h1').first().text().trim();
+    let $ = cheerio.load(res.body);
+    // Title format: "第二十二章 解决麻烦-《TITLE》" — extract chapter name part
+    const rawTitle = $('h1').first().text().trim();
+    const titleMatch = rawTitle.match(/^(.+?)[—\-—]《/);
+    const title = titleMatch ? titleMatch[1].trim() : rawTitle;
 
-    $('#content script, .bottem2, .con_top').remove();
-    const contentEl = $('#content, .content, .text').first();
+    const allLines: string[] = [];
+    let pageNum = 1;
+    const MAX_PAGES = 10; // Safety limit
 
-    if (!contentEl.length) {
-      return { title, contentHtml: '<p>Chapter text was empty.</p>', rawText: '' };
+    while (pageNum <= MAX_PAGES) {
+      if (pageNum > 1) {
+        // Construct next page URL: replace .html with _N.html
+        const baseUrl = chapterUrl.replace(/\.html$/, '');
+        const pageUrl = `${baseUrl}_${pageNum}.html`;
+        const nextRes = await smartFetch(pageUrl, { timeout: 20000 });
+        if (!nextRes.success || !nextRes.body) break;
+        $ = cheerio.load(nextRes.body);
+      }
+
+      // Content is in <article class="font_max"> — uses <br> separation, NOT <p> tags
+      const contentEl = $('article.font_max').first();
+      if (!contentEl.length) break;
+
+      // Split by <br> tags and clean up
+      const rawHtml = contentEl.html() || '';
+      const lines = rawHtml
+        .split(/<br\s*\/?>|\n+/)
+        .map((l) => cheerio.load(l).text().trim())
+        .filter((l) => l.length > 0 && !l.startsWith('第(') && !/^\s*$/.test(l));
+
+      allLines.push(...lines);
+
+      // Check if there's a next page: look for _{next}.html link
+      const nextPageNum = pageNum + 1;
+      const hasMore = $(`a[href$="_${nextPageNum}.html"]`).length > 0;
+      if (!hasMore) break;
+      pageNum++;
     }
 
-    const raw = contentEl.html() || '';
-    const lines = raw.split(/<br\s*\/?>|\n+/).map((l) => cheerio.load(l).text().trim()).filter(Boolean);
+    if (allLines.length === 0) {
+      return { title, contentHtml: '<p>Chapter text was empty after parsing.</p>', rawText: '' };
+    }
 
-    const contentHtml = lines.map((line) => `<p>${line}</p>`).join('');
-    const rawText = lines.join('\n\n');
+    const contentHtml = allLines.map((line) => `<p>${line}</p>`).join('\n');
+    const rawText = allLines.join('\n\n');
 
     return { title, contentHtml, rawText };
   }

@@ -74,22 +74,44 @@ export async function translateBatchTexts(texts: string[], from = 'zh-CN', to = 
 
   translatorStats.totalItemsTranslated += itemsToTranslate.length;
 
-  // Join with delimiter and translate in chunks
+  // Translate in small batches to avoid Google Translate URL length limits.
+  // Google Translate gtx endpoint has ~5000 char URL limit.
+  // Chinese text URL-encodes to 3x, so ~1500 chars of Chinese per request max.
+  // Each chapter title is ~5-20 chars, so batch of 5 is safe.
   const results = [...texts];
-  const batchSize = 10;
-  for (let i = 0; i < itemsToTranslate.length; i += batchSize) {
-    const chunkIndices = indicesToTranslate.slice(i, i + batchSize);
-    const chunkItems = itemsToTranslate.slice(i, i + batchSize);
-    const combined = chunkItems.join('\n---ITEM_BREAK---\n');
+  const BATCH_SIZE = 5;
+  const DELIMITER = '|||';
 
-    const translatedChunk = await translateTextChunk(combined, from, to);
-    const parts = translatedChunk.split(/---ITEM_BREAK---|\n---\n/);
+  for (let i = 0; i < itemsToTranslate.length; i += BATCH_SIZE) {
+    const chunkIndices = indicesToTranslate.slice(i, i + BATCH_SIZE);
+    const chunkItems = itemsToTranslate.slice(i, i + BATCH_SIZE);
 
-    chunkIndices.forEach((origIdx, chunkSubIdx) => {
-      if (parts[chunkSubIdx]) {
-        results[origIdx] = parts[chunkSubIdx].trim();
+    const combined = chunkItems.join(DELIMITER);
+    
+    try {
+      const translatedChunk = await translateTextChunk(combined, from, to);
+      const parts = translatedChunk.split(DELIMITER);
+      
+      if (parts.length === chunkItems.length) {
+        chunkIndices.forEach((origIdx, subIdx) => {
+          results[origIdx] = parts[subIdx].trim();
+        });
+      } else {
+        // Delimiter corrupted — fallback to original
+        chunkIndices.forEach((origIdx, subIdx) => {
+          results[origIdx] = chunkItems[subIdx];
+        });
       }
-    });
+    } catch {
+      chunkIndices.forEach((origIdx, subIdx) => {
+        results[origIdx] = chunkItems[subIdx];
+      });
+    }
+
+    // Rate limit between batches
+    if (i + BATCH_SIZE < itemsToTranslate.length) {
+      await new Promise(r => setTimeout(r, 200));
+    }
   }
 
   return results;
