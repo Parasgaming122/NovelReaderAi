@@ -1,6 +1,7 @@
 ```
 # Dependencies
 node_modules/
+.next/
 
 # Logs and temp files
 *.log

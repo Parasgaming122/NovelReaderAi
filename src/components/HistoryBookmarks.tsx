@@ -53,6 +53,7 @@ export default function HistoryBookmarks({ onSelectNovel }: HistoryBookmarksProp
       summary: entry.summary,
       chineseTitle: entry.chineseTitle,
       latestChapter: entry.latestChapter,
+      bookId: entry.bookId,
     });
   };
 
@@ -65,7 +66,7 @@ export default function HistoryBookmarks({ onSelectNovel }: HistoryBookmarksProp
           My Bookshelf & Reading History
         </h1>
         <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-          Access your saved Chinese web novels and recently read chapters across all sources.
+          Access your saved novels and reading history across all sources.
         </p>
       </div>
 

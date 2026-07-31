@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Globe, ShieldCheck, Loader2, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
+import { Globe, Loader2, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
 
 interface SourceFetchStatus {
   sourceId: string;
@@ -26,7 +26,6 @@ export default function FetchIndicator({ statuses, isComplete, onDismiss }: Fetc
   const totalCount = statuses.length;
   const successCount = statuses.filter(s => s.status === 'success').length;
   const errorCount = statuses.filter(s => s.status === 'error').length;
-  const isFetching = statuses.some(s => s.status === 'fetching');
 
   // Auto-dismiss 3s after completion
   useEffect(() => {
@@ -100,7 +99,7 @@ export default function FetchIndicator({ statuses, isComplete, onDismiss }: Fetc
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>
               {isComplete
-                ? `${errorCount} blocked by Cloudflare`
+                ? `${errorCount} returned no results`
                 : `${completedCount}/${totalCount} complete`}
             </div>
           </div>
@@ -180,7 +179,7 @@ export default function FetchIndicator({ statuses, isComplete, onDismiss }: Fetc
                 {source.status === 'error' && (
                   <>
                     <span style={{ fontSize: 10, color: '#ef4444' }}>
-                      {source.error || 'Blocked'}
+                      {source.error || 'No results'}
                     </span>
                     <XCircle size={12} style={{ color: '#ef4444' }} />
                   </>
@@ -188,28 +187,6 @@ export default function FetchIndicator({ statuses, isComplete, onDismiss }: Fetc
               </div>
             </div>
           ))}
-
-          {/* CF notice */}
-          {errorCount > 0 && (
-            <div
-              style={{
-                marginTop: 8,
-                padding: '8px 10px',
-                backgroundColor: 'rgba(239,68,68,0.05)',
-                borderRadius: 8,
-                borderLeft: '3px solid #ef4444',
-                fontSize: 10,
-                color: 'var(--text-2)',
-                lineHeight: 1.5,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <ShieldCheck size={12} style={{ color: '#ef4444' }} />
-                <span style={{ fontWeight: 700 }}>Cloudflare Protection</span>
-              </div>
-              Some sources use interactive Turnstile challenges that require human verification. Browse their catalogs instead.
-            </div>
-          )}
         </div>
       )}
     </div>

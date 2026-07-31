@@ -8,18 +8,18 @@ import NovelDetailView from '@/components/NovelDetailView';
 import ReaderConsole from '@/components/ReaderConsole';
 import SourcesView from '@/components/SourcesView';
 import SearchView from '@/components/SearchView';
-import ApiDocsView from '@/components/ApiDocsView';
 import HistoryBookmarks from '@/components/HistoryBookmarks';
 import SettingsView from '@/components/SettingsView';
 import FetchIndicator from '@/components/FetchIndicator';
 import { NovelItem, ChapterItem, NovelSourceInfo, GroupedSearchResult } from '@/lib/types';
-import { ShieldCheck, Zap, Globe, CheckCircle2 } from 'lucide-react';
 import { updateHistoryWithNovel } from '@/lib/favourites';
+
+type TabId = 'catalog' | 'sources' | 'search' | 'shelf' | 'settings';
 
 function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'catalog' | 'sources' | 'search' | 'shelf' | 'api-docs' | 'settings'>('catalog');
+  const [activeTab, setActiveTab] = useState<TabId>('catalog');
   const [sources, setSources] = useState<NovelSourceInfo[]>([]);
   const [selectedNovel, setSelectedNovel] = useState<NovelItem | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<{
@@ -48,7 +48,7 @@ function HomeContent() {
     if (novelParam) {
       try {
         const novel = JSON.parse(decodeURIComponent(novelParam));
-        if (novel && novel.id && novel.url) {
+        if (novel && novel.id) {
           setSelectedNovel(novel);
           setSelectedChapter(null);
         }
@@ -83,35 +83,17 @@ function HomeContent() {
     setSelectedChapter(null);
 
     try {
-      const saved = localStorage.getItem('plugin_settings');
-      let sourcesQuery = '';
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const activeIds = parsed.filter((p: any) => p.enabled).map((p: any) => p.id);
-            if (activeIds.length > 0) {
-              sourcesQuery = `&sources=${activeIds.join(',')}`;
-            }
-          }
-        } catch (e) {}
-      }
-
-      // Initialize fetch indicator statuses from sources
-      const searchSources = sources.length > 0 ? sources : [
-        { id: 'novel543', name: 'Novel543' },
-        { id: 'xbiquge', name: 'XBiquge' },
-        { id: 'ixdzs8', name: 'Ixdzs8' },
-        { id: 'shuba69', name: '69shuba' },
-        { id: 'timotxt', name: 'TimoTxt' },
-      ];
+      // Derive fetch statuses from sources
+      const searchSources = sources.length > 0
+        ? sources
+        : [{ id: 'unknown', name: 'Sources' }];
       const initialStatuses = searchSources.map(s => ({
         sourceId: s.id, sourceName: s.name, status: 'fetching' as const,
       }));
       setFetchStatuses(initialStatuses);
       setShowFetchIndicator(true);
 
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}${sourcesQuery}`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.groupedResults)) {
         setGroupedSearchResults(data.groupedResults);
@@ -138,14 +120,14 @@ function HomeContent() {
     // Update reading history
     updateHistoryWithNovel(novel);
     // Update URL
-    router.push(`?novel=${encodeURIComponent(JSON.stringify({ id: novel.id, url: novel.url, sourceId: novel.sourceId, title: novel.title }))}`, { scroll: false });
+    router.push(`?novel=${encodeURIComponent(JSON.stringify({ id: novel.id, url: novel.url, sourceId: novel.sourceId, title: novel.title, bookId: novel.bookId }))}`, { scroll: false });
   };
 
   const handleSelectChapter = (chapter: ChapterItem, allChapters: ChapterItem[]) => {
     setSelectedChapter({ chapter, allChapters });
   };
 
-  const handleNavigateTab = (tab: 'catalog' | 'sources' | 'search' | 'shelf' | 'api-docs' | 'settings') => {
+  const handleNavigateTab = (tab: TabId) => {
     setActiveTab(tab);
     setSelectedNovel(null);
     setSelectedChapter(null);
@@ -185,12 +167,6 @@ function HomeContent() {
             router.push('/', { scroll: false });
           }}
           onSelectChapter={handleSelectChapter}
-          onSwitchNovelSource={(newNovel) => {
-            setSelectedNovel(newNovel);
-            setSelectedChapter(null);
-            updateHistoryWithNovel(newNovel);
-            router.push(`?novel=${encodeURIComponent(JSON.stringify({ id: newNovel.id, url: newNovel.url, sourceId: newNovel.sourceId, title: newNovel.title }))}`, { scroll: false });
-          }}
         />
       ) : activeTab === 'sources' ? (
         /* 3. Sources Feed & Single-Source Search Page */
@@ -206,18 +182,15 @@ function HomeContent() {
       ) : activeTab === 'shelf' ? (
         /* 5. Bookshelf & Reading History */
         <HistoryBookmarks onSelectNovel={handleSelectNovel} />
-      ) : activeTab === 'api-docs' ? (
-        /* 6. API & Agent Developer Guide Page */
-        <ApiDocsView />
       ) : activeTab === 'settings' ? (
-        /* 7. Console Settings & Telemetry */
+        /* 6. Settings */
         <SettingsView />
       ) : (
-        /* 8. Default Home Catalog View */
+        /* 7. Default Home Catalog View */
         <NovelCatalog
           sources={sources}
           onSelectNovel={handleSelectNovel}
-          onSelectSource={(srcId) => {
+          onSelectSource={() => {
             handleNavigateTab('sources');
           }}
         />

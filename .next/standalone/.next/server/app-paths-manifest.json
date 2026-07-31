@@ -1,12 +1,11 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/api/alternative-sources/route": "app/api/alternative-sources/route.js",
+  "/page": "app/page.js",
   "/api/catalog/route": "app/api/catalog/route.js",
   "/api/chapter/route": "app/api/chapter/route.js",
   "/api/novel/route": "app/api/novel/route.js",
-  "/api/search/route": "app/api/search/route.js",
   "/api/sources/route": "app/api/sources/route.js",
-  "/api/stats/route": "app/api/stats/route.js",
-  "/api/translate/route": "app/api/translate/route.js",
-  "/page": "app/page.js"
+  "/api/search/route": "app/api/search/route.js",
+  "/api/multi-search/route": "app/api/multi-search/route.js",
+  "/api/translate/route": "app/api/translate/route.js"
 }

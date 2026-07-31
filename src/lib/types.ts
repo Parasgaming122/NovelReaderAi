@@ -1,13 +1,13 @@
-export interface NovelSourceInfo {
+/* ── NovelAPI Client Types ── */
+
+export interface SourceInfo {
   id: string;
   name: string;
   baseUrl: string;
   language: string;
-  version: string;
-  icon?: string;
+  charset: string;
   hasSearch: boolean;
-  description?: string;
-  charset?: string;
+  hasCatalog: boolean;
 }
 
 export interface NovelItem {
@@ -18,16 +18,23 @@ export interface NovelItem {
   cover?: string;
   author?: string;
   summary?: string;
+  description?: string;
   status?: string;
   latestChapter?: string;
   sourceId: string;
   sourceName?: string;
+  bookId?: string;
+  bookUrl?: string;
+  coverUrl?: string;
 }
 
 export interface ChapterItem {
   id: string;
   title: string;
   url: string;
+  chapterId?: string;
+  chapterUrl?: string;
+  ordernum?: number;
 }
 
 export interface NovelDetail extends NovelItem {
@@ -41,10 +48,15 @@ export interface GroupedSearchResult {
   items: NovelItem[];
 }
 
-export interface AlternativeSourceResult {
-  sourceId: string;
-  sourceName: string;
-  icon?: string;
+/* ── UI-facing source info (simplified) ── */
+export interface NovelSourceInfo {
+  id: string;
+  name: string;
   baseUrl: string;
-  matches: NovelItem[];
+  language: string;
+  version: string;
+  icon?: string;
+  hasSearch: boolean;
+  description?: string;
+  charset?: string;
 }

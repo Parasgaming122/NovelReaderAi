@@ -7,31 +7,24 @@ import {
   List,
   Search,
   ChevronRight,
-  ExternalLink,
-  ShieldCheck,
   RefreshCw,
   Copy,
   Check,
-  Layers,
-  Sparkles,
-  Globe,
   Heart,
 } from 'lucide-react';
 import { addFavourite, removeFavourite, isFavourite } from '@/lib/favourites';
-import { NovelItem, ChapterItem, AlternativeSourceResult } from '@/lib/types';
+import { NovelItem, ChapterItem } from '@/lib/types';
 
 interface NovelDetailViewProps {
   novel: NovelItem;
   onBack: () => void;
   onSelectChapter: (chapter: ChapterItem, allChapters: ChapterItem[]) => void;
-  onSwitchNovelSource?: (novel: NovelItem) => void;
 }
 
 export default function NovelDetailView({
   novel,
   onBack,
   onSelectChapter,
-  onSwitchNovelSource,
 }: NovelDetailViewProps) {
   const [chapters, setChapters] = useState<ChapterItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,10 +39,6 @@ export default function NovelDetailView({
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedChineseTitle, setCopiedChineseTitle] = useState(false);
 
-  // Alternative sources state
-  const [altSources, setAltSources] = useState<AlternativeSourceResult[]>([]);
-  const [loadingAltSources, setLoadingAltSources] = useState(false);
-
   // Favourite state
   const [favourited, setFavourited] = useState(false);
 
@@ -59,10 +48,9 @@ export default function NovelDetailView({
   }, [novel.id]);
 
   const handleToggleFavourite = () => {
-    // Build enriched novel object with latest data from state + API
     const enrichedNovel: NovelItem = {
       ...novel,
-      title: novel.title, // preserve the translated title from prop
+      title: novel.title,
       chineseTitle: chineseTitle || novel.chineseTitle,
       author: author || novel.author,
       summary: summary || novel.summary,
@@ -78,27 +66,16 @@ export default function NovelDetailView({
   };
 
   useEffect(() => {
-    async function fetchAlternativeSources(titleToQuery: string) {
-      if (!titleToQuery) return;
-      setLoadingAltSources(true);
-      try {
-        const res = await fetch(`/api/alternative-sources?title=${encodeURIComponent(titleToQuery)}&exclude=${novel.sourceId}`);
-        const data = await res.json();
-        if (data.success && Array.isArray(data.sources)) {
-          setAltSources(data.sources);
-        }
-      } catch (err) {
-        console.error('Error fetching alternative sources:', err);
-      } finally {
-        setLoadingAltSources(false);
-      }
-    }
-
     async function loadNovelData() {
       setLoading(true);
       try {
-        const targetUrl = novel.url || novel.id;
-        const res = await fetch(`/api/novel?url=${encodeURIComponent(targetUrl)}&source=${novel.sourceId}`);
+        const params = new URLSearchParams();
+        if (novel.bookId) {
+          params.set('bookId', novel.bookId);
+        }
+        params.set('source', novel.sourceId);
+
+        const res = await fetch(`/api/novel?${params.toString()}`);
         const data = await res.json();
         if (data.success && data.novel) {
           if (data.novel.chapters) setChapters(data.novel.chapters);
@@ -106,9 +83,7 @@ export default function NovelDetailView({
           if (data.novel.author) setAuthor(data.novel.author);
           if (data.novel.cover) setCover(data.novel.cover);
           if (data.novel.chineseTitle || data.novel.title) {
-            const zhName = data.novel.chineseTitle || data.novel.title;
-            setChineseTitle(zhName);
-            fetchAlternativeSources(zhName);
+            setChineseTitle(data.novel.chineseTitle || data.novel.title);
           }
         }
       } catch (err) {
@@ -170,12 +145,6 @@ export default function NovelDetailView({
               <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <span className="status-pill status-blue" style={{ fontSize: 11 }}>
                   SOURCE: {novel.sourceId.toUpperCase()}
-                </span>
-                <span className="status-pill status-orange" style={{ fontSize: 11 }}>
-                  CHINESE NOVEL (ZH-CN)
-                </span>
-                <span className="status-pill status-neutral" style={{ fontSize: 11 }}>
-                  <ShieldCheck size={12} strokeWidth={2} /> Cloudflare Bypass Ready
                 </span>
               </div>
 
@@ -272,17 +241,6 @@ export default function NovelDetailView({
                 </button>
               )}
 
-              <a
-                href={novel.url}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary"
-                style={{ padding: '12px 20px', fontSize: 14, textDecoration: 'none' }}
-              >
-                <ExternalLink size={16} strokeWidth={1.8} />
-                <span>Visit Source Site</span>
-              </a>
-
               <button
                 className={favourited ? 'btn-primary' : 'btn-secondary'}
                 onClick={handleToggleFavourite}
@@ -300,95 +258,6 @@ export default function NovelDetailView({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Alternative Sources Comparison Section */}
-      <div className="console-card" style={{ padding: 24, marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Layers size={20} strokeWidth={1.8} style={{ color: 'var(--orange)' }} />
-            <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
-              Alternative Sources for Chinese Novels
-            </h2>
-          </div>
-          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-            Searches other sites using Chinese title &quot;{chineseTitle}&quot;
-          </span>
-        </div>
-
-        {loadingAltSources ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-2)' }}>
-            <RefreshCw size={20} className="spin" style={{ marginBottom: 8 }} />
-            <p style={{ fontSize: 13 }}>Querying alternative Chinese repositories...</p>
-          </div>
-        ) : altSources.length === 0 ? (
-          <div style={{ padding: 20, backgroundColor: 'var(--surface-2)', borderRadius: 12, fontSize: 13, color: 'var(--text-3)' }}>
-            No alternative source mirrors found for this exact Chinese title right now.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {altSources.map((sourceRes) => (
-              <div
-                key={sourceRes.sourceId}
-                style={{
-                  backgroundColor: 'var(--surface-2)',
-                  padding: 16,
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Globe size={16} style={{ color: 'var(--blue)' }} />
-                    <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Space Grotesk', color: 'var(--text-1)' }}>
-                      {sourceRes.sourceName}
-                    </span>
-                    <span className="status-pill status-blue" style={{ fontSize: 10 }}>
-                      {sourceRes.sourceId.toUpperCase()}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                    {sourceRes.matches.length} Match(es) Found
-                  </span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-                  {sourceRes.matches.map((match) => (
-                    <div
-                      key={match.id}
-                      onClick={() => onSwitchNovelSource && onSwitchNovelSource(match)}
-                      style={{
-                        backgroundColor: 'var(--surface)',
-                        padding: 12,
-                        borderRadius: 10,
-                        border: '1px solid var(--border)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--blue)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-                    >
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
-                          {match.title}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-                          {match.author ? `By ${match.author}` : 'Click to switch source'}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        Switch <ChevronRight size={14} />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Chapter Table of Contents (TOC) Section */}
@@ -433,7 +302,7 @@ export default function NovelDetailView({
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>
             <RefreshCw size={24} strokeWidth={1.8} className="spin" style={{ marginBottom: 12 }} />
-            <p style={{ fontSize: 14 }}>Fetching chapter catalog from {novel.sourceId.toUpperCase()}...</p>
+            <p style={{ fontSize: 14 }}>Fetching chapter catalog...</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>

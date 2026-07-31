@@ -1,88 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pluginRegistry } from '@/lib/plugins/plugin-registry';
-import { translateNovelItems } from '@/lib/translator';
+import { getSources, getCatalog } from '@/lib/novelapi-client';
 
-interface CatalogCacheEntry {
-  data: any;
-  timestamp: number;
-}
-
-const catalogCacheMap = new Map<string, CatalogCacheEntry>();
-const CACHE_24_HOURS = 24 * 60 * 60 * 1000;
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const sourceId = searchParams.get('source');
-  const sourcesParam = searchParams.get('sources'); // comma separated order list
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const forceRefresh = searchParams.get('refresh') === 'true';
-
-  const orderedIds = sourcesParam ? sourcesParam.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+  const page = parseInt(req.nextUrl.searchParams.get('page') || '1');
+  const sourcesParam = req.nextUrl.searchParams.get('sources');
 
   try {
-    if (sourceId && sourceId !== 'all') {
-      const cacheKey = `source_${sourceId}_page_${page}`;
-      const cached = catalogCacheMap.get(cacheKey);
-      if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_24_HOURS) {
-        return NextResponse.json({ ...cached.data, cached: true });
-      }
+    const allSources = await getSources();
+    let targetSources = allSources;
 
-      const result = await pluginRegistry.getCatalogList(sourceId, page);
-      const translatedItems = await translateNovelItems(result.items);
-      const responseData = {
-        success: true,
-        sourceId,
-        page,
-        count: translatedItems.length,
-        hasNext: result.hasNext,
-        items: translatedItems,
-      };
-
-      catalogCacheMap.set(cacheKey, { data: responseData, timestamp: Date.now() });
-      return NextResponse.json(responseData);
+    if (sourcesParam) {
+      const ids = new Set(sourcesParam.split(','));
+      targetSources = allSources.filter(s => ids.has(s.id));
     }
 
-    const multiCacheKey = `multi_catalog_page_${page}_sources_${sourcesParam || 'all'}`;
-    const cachedMulti = catalogCacheMap.get(multiCacheKey);
-    if (!forceRefresh && cachedMulti && Date.now() - cachedMulti.timestamp < CACHE_24_HOURS) {
-      return NextResponse.json({ ...cachedMulti.data, cached: true });
-    }
-
-    const multiCatalog = await pluginRegistry.getMultiSourceCatalog(page, orderedIds);
-
-    // Translate items in multiCatalog in parallel
-    const translatedMultiCatalog = await Promise.all(
-      multiCatalog.map(async (cat) => {
-        const translatedItems = await translateNovelItems(cat.items);
+    const catalogs = await Promise.allSettled(
+      targetSources.map(async (s) => {
+        const items = await getCatalog(s.id, page);
         return {
-          ...cat,
-          items: translatedItems,
+          sourceId: s.id,
+          sourceName: s.name,
+          items: items.map(it => ({
+            id: `${s.id}:${it.bookId}`,
+            title: it.title,
+            chineseTitle: it.title,
+            url: it.bookUrl || `/${s.id}/${it.bookId}`,
+            cover: it.coverUrl,
+            author: it.author,
+            summary: it.description,
+            sourceId: s.id,
+            sourceName: s.name,
+            bookId: it.bookId,
+          })),
         };
       })
     );
 
-    const multiResponseData = {
-      success: true,
-      page,
-      catalogs: translatedMultiCatalog,
-    };
+    const successCatalogs = catalogs
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+      .map(r => r.value);
 
-    // Sort: sources with items first, empty sources last
-    multiResponseData.catalogs.sort((a, b) => {
-      const aCount = a.items ? a.items.length : 0;
-      const bCount = b.items ? b.items.length : 0;
-      if (aCount > 0 && bCount === 0) return -1;
-      if (aCount === 0 && bCount > 0) return 1;
-      return 0;
-    });
-
-    catalogCacheMap.set(multiCacheKey, { data: multiResponseData, timestamp: Date.now() });
-
-    return NextResponse.json(multiResponseData);
+    return NextResponse.json({ success: true, catalogs: successCatalogs });
   } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      error: err.message || 'Failed to load catalog',
-    });
+    return NextResponse.json({ success: false, error: err.message });
   }
 }

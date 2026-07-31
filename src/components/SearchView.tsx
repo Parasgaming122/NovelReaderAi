@@ -28,8 +28,8 @@ export default function SearchView({
         </h1>
         <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
           {query
-            ? `Searching across all Chinese novel sites for "${query}". Found ${totalCount} results.`
-            : 'Enter a search term in the top bar to query all Chinese novel repositories.'}
+            ? `Searching across all novel sources for "${query}". Found ${totalCount} results.`
+            : 'Enter a search term in the top bar to query all novel repositories.'}
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export default function SearchView({
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--text-2)' }}>
           <RefreshCw size={28} strokeWidth={1.8} className="spin" style={{ marginBottom: 16 }} />
           <p style={{ fontSize: 15, fontWeight: 600, fontFamily: 'Space Grotesk' }}>
-            Querying Chinese novel repositories (Novel543, TimoTxt, 69shuba, Biquge5200, XBiquge)...
+            Querying all novel sources...
           </p>
         </div>
       ) : !query ? (
@@ -47,7 +47,7 @@ export default function SearchView({
             Start a Search
           </h3>
           <p style={{ fontSize: 13, marginTop: 8 }}>
-            Type any Chinese title or English keyword in the top search bar to scan all sources.
+            Type any title or keyword in the top search bar to scan all sources.
           </p>
         </div>
       ) : totalCount === 0 ? (
@@ -57,18 +57,17 @@ export default function SearchView({
             No titles found for &quot;{query}&quot;
           </h3>
           <p style={{ fontSize: 13, marginTop: 8 }}>
-            Try searching with Chinese characters (e.g., 诡秘之主, 宿命之环, 仙侠) or try another source.
+            Try a different keyword or check your spelling.
           </p>
         </div>
       ) : (
-/* Grouped By Site Name Layout with Horizontal Sliders */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
           {groupedResults.map((group) => {
             if (!group.items || group.items.length === 0) return null;
 
             return (
               <div key={group.sourceId} className="console-card" style={{ padding: '24px 28px' }}>
-                {/* Site Name Header */}
+                {/* Source Name Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Globe size={18} style={{ color: 'var(--blue)' }} />

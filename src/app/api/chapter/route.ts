@@ -1,51 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pluginRegistry } from '@/lib/plugins/plugin-registry';
+import { getChapterText } from '@/lib/novelapi-client';
 import { translateHtml } from '@/lib/translator';
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const urlParam = searchParams.get('url') || '';
-  const source = searchParams.get('source') || 'novel543';
-  const translateParam = searchParams.get('translate') !== 'false';
-  const targetLang = searchParams.get('lang') || 'en';
+export const dynamic = 'force-dynamic';
 
-  if (!urlParam) {
-    return NextResponse.json({
-      success: false,
-      error: 'Query parameter "url" is required.',
-    });
+export async function GET(req: NextRequest) {
+  const sourceId = req.nextUrl.searchParams.get('source') || '';
+  const bookId = req.nextUrl.searchParams.get('bookId') || '';
+  const chapterId = req.nextUrl.searchParams.get('chapterId') || '';
+  const translate = req.nextUrl.searchParams.get('translate') === 'true';
+  const lang = req.nextUrl.searchParams.get('lang') || 'en';
+  const provider = req.nextUrl.searchParams.get('provider') || undefined;
+
+  if (!sourceId || !bookId || !chapterId) {
+    return NextResponse.json({ success: false, error: 'Missing ?source=, ?bookId=, ?chapterId=' });
   }
 
   try {
-    const chapterUrl = urlParam.startsWith('http')
-      ? urlParam
-      : Buffer.from(urlParam, 'base64url').toString('utf-8');
+    const result = await getChapterText(sourceId, bookId, chapterId);
+    if (!result) return NextResponse.json({ success: false, error: 'Chapter not found' });
 
-    const result = await pluginRegistry.getChapterText(source, chapterUrl);
-    if (!result || !result.contentHtml) {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to retrieve chapter content.',
-      });
-    }
+    const rawHtml = result.content
+      ? result.content.split('\n').filter(l => l.trim()).map(l => `<p>${l.trim()}</p>`).join('\n')
+      : '';
 
-    let translatedHtml = result.contentHtml;
-    if (translateParam) {
-      translatedHtml = await translateHtml(result.contentHtml, 'zh-CN', targetLang);
+    let translatedHtml = '';
+    if (translate && rawHtml && lang === 'en') {
+      try {
+        translatedHtml = await translateHtml(rawHtml, 'zh-CN', 'en', provider);
+      } catch (err) {
+        console.error('Translation failed, returning raw:', err);
+        translatedHtml = rawHtml;
+      }
     }
 
     return NextResponse.json({
       success: true,
-      url: chapterUrl,
       title: result.title,
-      rawHtml: result.contentHtml,
-      translatedHtml,
-      rawText: result.rawText,
+      rawHtml,
+      translatedHtml: translatedHtml || rawHtml,
+      rawText: result.content || '',
     });
   } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      error: err.message || 'Error loading chapter',
-    });
+    return NextResponse.json({ success: false, error: err.message });
   }
 }

@@ -5,13 +5,10 @@ import {
   Globe,
   Search,
   RefreshCw,
-  ShieldCheck,
   ExternalLink,
   ChevronRight,
   BookOpen,
   ArrowLeft,
-  Server,
-  Filter,
   ChevronDown,
 } from 'lucide-react';
 import { NovelSourceInfo, NovelItem, GroupedSearchResult } from '@/lib/types';
@@ -23,40 +20,6 @@ interface SourcesViewProps {
 
 export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps) {
   const [selectedSource, setSelectedSource] = useState<NovelSourceInfo | null>(null);
-  const [orderedSources, setOrderedSources] = useState<NovelSourceInfo[]>(sources);
-
-  useEffect(() => {
-    const applyPluginSettings = () => {
-      const saved = localStorage.getItem('plugin_settings');
-      if (!saved) {
-        setOrderedSources(sources);
-        return;
-      }
-      try {
-        const parsed: { id: string; enabled: boolean }[] = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const enabledMap = new Map(parsed.map((p) => [p.id, p.enabled]));
-          const orderMap = new Map(parsed.map((p, idx) => [p.id, idx]));
-
-          const filtered = sources.filter((s) => enabledMap.get(s.id) !== false);
-          filtered.sort((a, b) => {
-            const orderA = orderMap.get(a.id) ?? 99;
-            const orderB = orderMap.get(b.id) ?? 99;
-            return orderA - orderB;
-          });
-          setOrderedSources(filtered);
-        } else {
-          setOrderedSources(sources);
-        }
-      } catch {
-        setOrderedSources(sources);
-      }
-    };
-
-    applyPluginSettings();
-    window.addEventListener('plugin_settings_updated', applyPluginSettings);
-    return () => window.removeEventListener('plugin_settings_updated', applyPluginSettings);
-  }, [sources]);
   const [globalQuery, setGlobalQuery] = useState('');
   const [globalResults, setGlobalResults] = useState<GroupedSearchResult[]>([]);
   const [globalLoading, setGlobalLoading] = useState(false);
@@ -175,18 +138,12 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                   <span className="status-pill status-blue" style={{ fontSize: 11 }}>
                     {selectedSource.id.toUpperCase()}
                   </span>
-                  <span className="status-pill status-orange" style={{ fontSize: 11 }}>
-                    VERSION {selectedSource.version}
-                  </span>
-                  <span className="status-pill status-neutral" style={{ fontSize: 11 }}>
-                    <ShieldCheck size={12} /> Cloudflare Bypass Active
-                  </span>
                 </div>
                 <h1 className="font-display" style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-1)' }}>
-                  {selectedSource.name} Feed & Isolated Search
+                  {selectedSource.name} Feed & Search
                 </h1>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-                  {selectedSource.description || 'Native TypeScript scraper with GBK/UTF8 decoding.'}
+                  {selectedSource.description || 'Browse and search novels from this source.'}
                 </p>
               </div>
 
@@ -197,7 +154,7 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                   <input
                     type="text"
                     className="search-input"
-                    placeholder={`Search within ${selectedSource.name} only...`}
+                    placeholder={`Search within ${selectedSource.name}...`}
                     value={singleSearchQuery}
                     onChange={(e) => setSingleSearchQuery(e.target.value)}
                   />
@@ -326,7 +283,7 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                 ) : (
                   <Search size={14} strokeWidth={1.8} />
                 )}
-                <span>{globalLoading ? 'Searching…' : 'Search All'}</span>
+                <span>{globalLoading ? 'Searching...' : 'Search All'}</span>
               </button>
             </form>
 
@@ -452,7 +409,7 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
             {globalLoading && (
               <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-2)' }}>
                 <RefreshCw size={20} className="spin" style={{ marginBottom: 8 }} />
-                <p style={{ fontSize: 13 }}>Searching across all sources…</p>
+                <p style={{ fontSize: 13 }}>Searching across all sources...</p>
               </div>
             )}
 
@@ -466,15 +423,15 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
 
           <div style={{ marginBottom: 32 }}>
             <h1 className="font-display" style={{ fontSize: 30, fontWeight: 700, color: 'var(--text-1)' }}>
-              Source Repositories & Plugin Engine
+              Source Repositories
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-              Select a source to browse its native feed or perform single-source isolated searches.
+              Select a source to browse its native feed or perform single-source searches.
             </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 24 }}>
-            {orderedSources.map((src) => (
+            {sources.map((src) => (
               <div
                 key={src.id}
                 className="console-card"
@@ -502,7 +459,7 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                         {src.name}
                       </h3>
                       <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'Space Grotesk' }}>
-                        ID: {src.id} | v{src.version}
+                        ID: {src.id}
                       </span>
                     </div>
                   </div>
@@ -513,7 +470,7 @@ export default function SourcesView({ sources, onSelectNovel }: SourcesViewProps
                 </div>
 
                 <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 20 }}>
-                  {src.description || 'Native TypeScript plugin scraper with 4-tier Cloudflare bypass.'}
+                  {src.description || 'Web novel source with catalog and search.'}
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 14 }}>

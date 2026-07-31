@@ -1,88 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pluginRegistry } from '@/lib/plugins/plugin-registry';
-import { translateNovelDetail, translateBatchTexts } from '@/lib/translator';
+import { getNovelInfo } from '@/lib/novelapi-client';
+import { translateNovelDetail } from '@/lib/translator';
 
-const FEATURED_URL_MAP: Record<string, string> = {
-  'novel543-1001': 'https://www.novel543.com/0_1/',
-  'timotxt-2002': 'https://www.timotxt.com/txt/2002.html',
-  'shuba69-3003': 'https://www.69shuba.pro/txt/3003.html',
-  'biquge5200-4004': 'https://www.biquge5200.cc/0_4004/',
-  'xbiquge-5005': 'https://www.xbiquge.info/0_5005/',
-};
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const urlParam = searchParams.get('url') || '';
-  const source = searchParams.get('source') || 'novel543';
+  const sourceId = req.nextUrl.searchParams.get('source') || '';
+  const bookId = req.nextUrl.searchParams.get('bookId') || '';
 
-  if (!urlParam) {
-    return NextResponse.json({
-      success: false,
-      error: 'Query parameter "url" is required.',
-    });
+  if (!sourceId || !bookId) {
+    return NextResponse.json({ success: false, error: 'Missing ?source= and ?bookId=' });
   }
 
   try {
-    let targetUrl = FEATURED_URL_MAP[urlParam] || urlParam;
+    const novel = await getNovelInfo(sourceId, bookId);
+    if (!novel) return NextResponse.json({ success: false, error: 'Novel not found' });
 
-    if (!targetUrl.startsWith('http')) {
-      try {
-        const decoded = Buffer.from(urlParam, 'base64url').toString('utf-8');
-        if (decoded.startsWith('http')) {
-          targetUrl = decoded;
-        }
-      } catch (e) {
-        // Ignore decode error
-      }
-    }
-
-    let detail = await pluginRegistry.getBookDetails(source, targetUrl);
-
-    // Fallback if null, try default plugin or domain plugin
-    if (!detail) {
-      detail = await pluginRegistry.getBookDetails('novel543', targetUrl);
-    }
-
-    if (!detail) {
-      return NextResponse.json({
-        success: false,
-        error: 'Unable to fetch novel details from source.',
-      });
-    }
-
-    // Translate novel title, author, and summary into English
-    const translatedDetail = await translateNovelDetail(detail);
-
-    // Translate ALL chapter titles in batches
-    // Reduced batch size to avoid overwhelming Google Translate rate limits
-    if (translatedDetail.chapters && translatedDetail.chapters.length > 0) {
-      const BATCH_SIZE = 50;
-      const allChapters = translatedDetail.chapters;
-      const translatedTitles: string[] = new Array(allChapters.length);
-
-      for (let i = 0; i < allChapters.length; i += BATCH_SIZE) {
-        const batch = allChapters.slice(i, i + BATCH_SIZE).map((c) => c.title);
-        const translatedBatch = await translateBatchTexts(batch);
-        for (let j = 0; j < translatedBatch.length; j++) {
-          translatedTitles[i + j] = translatedBatch[j] || allChapters[i + j].title;
-        }
-      }
-
-      translatedDetail.chapters = allChapters.map((c, i) => ({
-        ...c,
-        title: translatedTitles[i] || c.title,
-        originalTitle: c.title,
-      }));
-    }
+    // Auto-translate title, author, summary
+    const translated = await translateNovelDetail({
+      title: novel.title,
+      chineseTitle: novel.title,
+      author: novel.author || '',
+      summary: novel.description || '',
+    });
 
     return NextResponse.json({
       success: true,
-      novel: translatedDetail,
+      novel: {
+        id: `${sourceId}:${novel.bookId}`,
+        title: translated.title,
+        chineseTitle: translated.chineseTitle,
+        url: `/${sourceId}/${novel.bookId}`,
+        cover: novel.coverUrl,
+        author: translated.author,
+        summary: translated.summary,
+        sourceId,
+        sourceName: sourceId,
+        bookId: novel.bookId,
+        chapters: novel.chapters.map(ch => ({
+          id: `${sourceId}:${novel.bookId}:${ch.chapterId}`,
+          title: ch.title,
+          url: `/${sourceId}/${novel.bookId}/${ch.chapterId}`,
+          chapterId: ch.chapterId,
+          ordernum: ch.ordernum,
+        })),
+      },
     });
   } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      error: err.message || 'Error fetching novel details',
-    });
+    return NextResponse.json({ success: false, error: err.message });
   }
 }

@@ -4,16 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   BookOpen,
   Globe,
-  Zap,
-  CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  TrendingUp,
-  Filter,
-  ExternalLink,
   Sparkles,
   RefreshCw,
-  Layers,
 } from 'lucide-react';
 import { NovelItem, NovelSourceInfo } from '@/lib/types';
 
@@ -22,74 +16,6 @@ interface NovelCatalogProps {
   onSelectNovel: (novel: NovelItem) => void;
   onSelectSource: (sourceId: string) => void;
 }
-
-const FEATURED_NOVELS: NovelItem[] = [
-  {
-    id: 'https://www.novel543.com/0_1/',
-    title: 'Lord of the Mysteries',
-    chineseTitle: '诡秘之主',
-    url: 'https://www.novel543.com/0_1/',
-    sourceId: 'novel543',
-    author: 'Cuttlefish That Loves Diving',
-    summary:
-      'With the rising tide of steam and machinery, who can come close to being a Beyonder? In the shadows of history and mysticism, Zhou Mingrui wakes up in the body of Klein Moretti...',
-    cover: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=400&q=80',
-    status: 'Completed',
-    latestChapter: 'Chapter 1402: The Fools Journey',
-  },
-  {
-    id: 'https://www.timotxt.com/txt/2002.html',
-    title: 'Circle of Inevitability',
-    chineseTitle: '宿命之环',
-    url: 'https://www.timotxt.com/txt/2002.html',
-    sourceId: 'timotxt',
-    author: 'Cuttlefish That Loves Diving',
-    summary:
-      'In the year 1358, at the end of July, Lumian Lee returned to the village of Cordu in Intis. The crimson moon hung high in the sky as mysteries unfolded...',
-    cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80',
-    status: 'Ongoing',
-    latestChapter: 'Chapter 890: The Secret of Cordu',
-  },
-  {
-    id: 'https://www.69shuba.pro/txt/3003.html',
-    title: 'Deep Space Beyond',
-    chineseTitle: '深空彼岸',
-    url: 'https://www.69shuba.pro/txt/3003.html',
-    sourceId: 'shuba69',
-    author: 'Chen Dong',
-    summary:
-      'Beyond the deep space starry sky lies the origin of ancient myths. As interstellar exploration uncovers ancient secret realm ruins, a young cultivator embarks on a cosmic journey...',
-    cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80',
-    status: 'Completed',
-    latestChapter: 'Chapter 1120: Mythical Origin',
-  },
-  {
-    id: 'https://www.biquge5200.cc/0_4004/',
-    title: 'Dao of the Bizarre Immortal',
-    chineseTitle: '道诡异仙',
-    url: 'https://www.biquge5200.cc/0_4004/',
-    sourceId: 'biquge5200',
-    author: 'Fox Tail Pen',
-    summary:
-      'Li Huowang cannot distinguish between hallucination and reality. Is he a patient in a modern psychiatric hospital, or a disciple in a terrifying world of dark immortal cultivation?',
-    cover: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=400&q=80',
-    status: 'Completed',
-    latestChapter: 'Chapter 1018: Truth and Illusion',
-  },
-  {
-    id: 'https://www.xbiquge.info/0_5005/',
-    title: 'Beyond the Times',
-    chineseTitle: '光阴之外',
-    url: 'https://www.xbiquge.info/0_5005/',
-    sourceId: 'xbiquge',
-    author: 'Er Gen',
-    summary:
-      'When the divine face descended upon the sky, the world collapsed into mutative miasma. A scavenger boy named Xu Qing rises from the ruins to seize his destiny beyond time...',
-    cover: 'https://images.unsplash.com/photo-1476275466078-4007374efbbe?auto=format&fit=crop&w=400&q=80',
-    status: 'Ongoing',
-    latestChapter: 'Chapter 942: Scavenger Legend',
-  },
-];
 
 interface MultiSourceCatalogGroup {
   sourceId: string;
@@ -111,37 +37,19 @@ export default function NovelCatalog({
     async function loadMultiCatalog() {
       setLoadingMulti(true);
       try {
-        const saved = localStorage.getItem('plugin_settings');
-        let sourcesQuery = '';
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) {
-              const activeIds = parsed.filter((p: any) => p.enabled).map((p: any) => p.id);
-              if (activeIds.length > 0) {
-                sourcesQuery = `?sources=${activeIds.join(',')}`;
-              }
-            }
-          } catch (e) {}
-        }
-
-        const res = await fetch(`/api/catalog${sourcesQuery}`);
+        const res = await fetch('/api/catalog');
         const data = await res.json();
         if (data.success && Array.isArray(data.catalogs)) {
           setMultiCatalogs(data.catalogs);
         }
       } catch (err) {
-        console.error('Failed to load multi source catalog:', err);
+        console.error('Failed to load catalog:', err);
       } finally {
         setLoadingMulti(false);
       }
     }
 
     loadMultiCatalog();
-
-    const handleUpdate = () => loadMultiCatalog();
-    window.addEventListener('plugin_settings_updated', handleUpdate);
-    return () => window.removeEventListener('plugin_settings_updated', handleUpdate);
   }, []);
 
   const scrollSlider = (sourceId: string, direction: 'left' | 'right') => {
@@ -169,73 +77,34 @@ export default function NovelCatalog({
             className="font-display"
             style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.8px', color: 'var(--text-1)' }}
           >
-            Chinese Web Novel Repositories
+            Novel Catalog
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4, maxWidth: 640 }}>
-            Browse live novel streams across Novel543, 69shuba, TimoTxt, Biquge5200, and XBiquge with auto-translated English titles & posters.
+            Browse novels from multiple sources with real-time auto-translation.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn-secondary" onClick={() => onSelectSource('all')}>
             <Globe size={16} strokeWidth={1.8} />
-            <span>All 25+ Sources</span>
+            <span>Browse Sources</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Dashboard Strips */}
+      {/* KPI: Number of Sources */}
       <div className="kpi-grid" style={{ marginBottom: 36 }}>
         <div className="kpi-card">
           <div className="kpi-header">
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-              Multi-Site Feed Sliders
+              Available Sources
             </span>
             <div className="kpi-icon-box kpi-icon-blue">
-              <Layers size={20} strokeWidth={1.8} />
+              <Globe size={20} strokeWidth={1.8} />
             </div>
           </div>
-          <div className="kpi-val">5 Sources</div>
-          <div className="kpi-sub">Novel543, 69shuba, TimoTxt & more</div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-              CF Bypass Engine
-            </span>
-            <div className="kpi-icon-box kpi-icon-orange">
-              <Zap size={20} strokeWidth={1.8} />
-            </div>
-          </div>
-          <div className="kpi-val">Active</div>
-          <div className="kpi-sub">Header spoofing & session replay</div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-              English Translation
-            </span>
-            <div className="kpi-icon-box kpi-icon-blue">
-              <CheckCircle2 size={20} strokeWidth={1.8} />
-            </div>
-          </div>
-          <div className="kpi-val">Auto-Enabled</div>
-          <div className="kpi-sub">Titles, summaries & chapter contents</div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-header">
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-              24-Hour Cache
-            </span>
-            <div className="kpi-icon-box kpi-icon-orange">
-              <TrendingUp size={20} strokeWidth={1.8} />
-            </div>
-          </div>
-          <div className="kpi-val">Cached</div>
-          <div className="kpi-sub">Fast & zero redundant API calls</div>
+          <div className="kpi-val">{sources.length} Sources</div>
+          <div className="kpi-sub">Web novel repositories</div>
         </div>
       </div>
 
@@ -243,17 +112,17 @@ export default function NovelCatalog({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
         <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 32 }}>
           <h2 className="font-display" style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-1)' }}>
-            📚 Multi-Website Source Sliders
+            Multi-Source Catalog
           </h2>
           <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-            Explore fresh releases and top novels extracted directly from each source repository with posters and auto-translation.
+            Browse the latest releases from each source repository with auto-translated titles and covers.
           </p>
         </div>
 
         {loadingMulti ? (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-2)' }}>
             <RefreshCw size={28} className="spin" style={{ marginBottom: 12, color: 'var(--blue)' }} />
-            <p style={{ fontSize: 14, fontWeight: 600 }}>Loading live sliders across Novel543, 69shuba, TimoTxt & Biquge...</p>
+            <p style={{ fontSize: 14, fontWeight: 600 }}>Loading catalog from all sources...</p>
           </div>
         ) : (
           multiCatalogs.map((cat) => {
@@ -324,7 +193,7 @@ export default function NovelCatalog({
                 {/* Horizontal Scroll Container */}
                 {!hasItems ? (
                   <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
-                    No items retrieved for this source stream currently.
+                    No titles found for this source.
                   </div>
                 ) : (
                   <div

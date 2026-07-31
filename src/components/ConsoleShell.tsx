@@ -6,20 +6,20 @@ import {
   Search,
   Bookmark,
   Globe,
-  Code2,
   Settings,
   Sun,
   Moon,
   Clock,
   Bell,
-  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 
+type TabId = 'catalog' | 'sources' | 'search' | 'shelf' | 'settings';
+
 interface ConsoleShellProps {
   children: React.ReactNode;
-  activeTab: 'catalog' | 'sources' | 'search' | 'shelf' | 'api-docs' | 'settings';
-  setActiveTab: (tab: 'catalog' | 'sources' | 'search' | 'shelf' | 'api-docs' | 'settings') => void;
+  activeTab: TabId;
+  setActiveTab: (tab: TabId) => void;
   onSearchSubmit: (query: string) => void;
 }
 
@@ -95,7 +95,7 @@ export default function ConsoleShell({
           aria-label="Multi-Source Search"
         >
           <Search size={20} strokeWidth={1.8} />
-          <span className="rail-tooltip">Grouped Search</span>
+          <span className="rail-tooltip">Multi-Source Search</span>
         </button>
 
         <button
@@ -105,15 +105,6 @@ export default function ConsoleShell({
         >
           <Bookmark size={20} strokeWidth={1.8} />
           <span className="rail-tooltip">Bookshelf</span>
-        </button>
-
-        <button
-          className={`rail-item ${activeTab === 'api-docs' ? 'active' : ''}`}
-          onClick={() => setActiveTab('api-docs')}
-          aria-label="API Documentation"
-        >
-          <Code2 size={20} strokeWidth={1.8} />
-          <span className="rail-tooltip">API & Agent Guide</span>
         </button>
 
         <button
@@ -151,7 +142,7 @@ export default function ConsoleShell({
             <input
               type="text"
               className="search-input"
-              placeholder="Search novels, authors, or sources (e.g. 洪荒, 诡秘之主)..."
+              placeholder="Search novels, authors, or sources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -159,12 +150,6 @@ export default function ConsoleShell({
 
           {/* Right Header Status Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            {/* Live Bypasser Badge */}
-            <div className="status-pill status-blue" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ShieldCheck size={14} strokeWidth={2} />
-              <span>CF Bypass Active</span>
-            </div>
-
             {/* Live Clock */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text-2)', fontFamily: 'Space Grotesk' }}>
               <Clock size={15} strokeWidth={1.8} />
@@ -176,10 +161,10 @@ export default function ConsoleShell({
               className="btn-secondary"
               onClick={toggleTheme}
               style={{ padding: '8px 14px', borderRadius: 999 }}
-              aria-label="Toggle Warm Duotone Theme"
+              aria-label="Toggle Theme"
             >
               {theme === 'light' ? <Moon size={16} strokeWidth={1.8} /> : <Sun size={16} strokeWidth={1.8} />}
-              <span style={{ fontSize: 12 }}>{theme === 'light' ? 'Dark' : 'Warm'}</span>
+              <span style={{ fontSize: 12 }}>{theme === 'light' ? 'Dark' : 'Light'}</span>
             </button>
 
             {/* Notifications Dot */}

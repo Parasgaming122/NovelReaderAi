@@ -5,16 +5,12 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Globe,
-  Settings,
   List,
   Sparkles,
   RefreshCw,
-  Zap,
   BookOpen,
   Sliders,
   X,
-  Type,
 } from 'lucide-react';
 import { ChapterItem, NovelItem } from '@/lib/types';
 
@@ -32,8 +28,8 @@ export default function ReaderConsole({
   onBack,
 }: ReaderConsoleProps) {
   const [currentChapterIndex, setCurrentChapterIndex] = useState(
-    allChapters.findIndex((c) => c.url === initialChapter.url) !== -1
-      ? allChapters.findIndex((c) => c.url === initialChapter.url)
+    allChapters.findIndex((c) => c.id === initialChapter.id) !== -1
+      ? allChapters.findIndex((c) => c.id === initialChapter.id)
       : 0
   );
 
@@ -57,17 +53,23 @@ export default function ReaderConsole({
   const [showTocDrawer, setShowTocDrawer] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
 
-  // Active Source Selection
-  const [activeSource, setActiveSource] = useState(novel.sourceId || 'novel543');
-
   // Load Chapter Content
   useEffect(() => {
     async function loadChapter() {
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/chapter?url=${encodeURIComponent(currentChapter.url)}&translate=true&lang=en`
-        );
+        const params = new URLSearchParams();
+        params.set('source', novel.sourceId);
+        if (novel.bookId) {
+          params.set('bookId', novel.bookId);
+        }
+        if (currentChapter.chapterId) {
+          params.set('chapterId', currentChapter.chapterId);
+        }
+        params.set('translate', 'true');
+        params.set('lang', 'en');
+
+        const res = await fetch(`/api/chapter?${params.toString()}`);
         const data = await res.json();
         if (data.success) {
           setChapterData({
@@ -86,7 +88,7 @@ export default function ReaderConsole({
 
     loadChapter();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentChapter, activeSource]);
+  }, [currentChapter, novel.bookId, novel.sourceId]);
 
   // Track Reading Scroll Progress
   useEffect(() => {
@@ -325,7 +327,7 @@ export default function ReaderConsole({
           <div style={{ padding: 80, textAlign: 'center', color: 'var(--text-2)' }}>
             <RefreshCw size={28} strokeWidth={1.8} className="spin" style={{ marginBottom: 16 }} />
             <p style={{ fontSize: 15, fontWeight: 600, fontFamily: 'Space Grotesk' }}>
-              Bypassing Cloudflare protection & translating chapter...
+              Loading and translating chapter...
             </p>
           </div>
         ) : (
@@ -349,7 +351,7 @@ export default function ReaderConsole({
               </h1>
 
               <p style={{ fontSize: 13, opacity: 0.7, marginTop: 8 }}>
-                Novel: {novel.title} | Source: {activeSource.toUpperCase()}
+                Novel: {novel.title} | Source: {novel.sourceId.toUpperCase()}
               </p>
             </div>
 

@@ -1,76 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pluginRegistry } from '@/lib/plugins/plugin-registry';
-import { translateText, translateNovelItems } from '@/lib/translator';
+import { getSources, searchSource } from '@/lib/novelapi-client';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get('q') || searchParams.get('query') || '';
-  const sourceId = searchParams.get('source') || 'all';
-  const sourcesParam = searchParams.get('sources'); // comma-separated order/enabled IDs
-  const page = parseInt(searchParams.get('page') || '1', 10);
-
-  const orderedIds = sourcesParam ? sourcesParam.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-
-  if (!q.trim()) {
-    return NextResponse.json({
-      success: false,
-      error: 'Query parameter "q" is required.',
-    });
-  }
+  const q = req.nextUrl.searchParams.get('q') || '';
+  if (!q.trim()) return NextResponse.json({ success: false, error: 'Missing ?q= parameter' });
 
   try {
-    const rawQuery = q.trim();
-    let queryChinese = rawQuery;
+    const sources = await getSources();
+    const searchable = sources.filter(s => s.hasSearch);
 
-    // Translate English or Pinyin query to Chinese first if ASCII
-    if (/^[a-zA-Z0-9\s\-_',.?!]+$/.test(rawQuery)) {
-      const translated = await translateText(rawQuery, 'en', 'zh-CN');
-      if (translated && translated.trim()) {
-        queryChinese = translated.trim();
-      }
-    }
+    const results = await Promise.allSettled(
+      searchable.map(async (s) => {
+        const items = await searchSource(s.id, q.trim());
+        return {
+          sourceId: s.id,
+          sourceName: s.name,
+          icon: undefined,
+          items: items.map(it => ({
+            id: `${s.id}:${it.bookId}`,
+            title: it.title,
+            chineseTitle: it.title,
+            url: it.bookUrl || `/${s.id}/${it.bookId}`,
+            cover: it.coverUrl,
+            author: it.author,
+            summary: it.description,
+            sourceId: s.id,
+            sourceName: s.name,
+            bookId: it.bookId,
+          })),
+        };
+      })
+    );
 
-    // Execute multi-source search using Chinese query
-    let searchGrouped = await pluginRegistry.searchSources(queryChinese, sourceId, page, orderedIds);
+    const groupedResults = results
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+      .map(r => r.value)
+      .filter(g => g.items.length > 0);
 
-    // Fallback: if Chinese query returned 0 items and raw query is different, try searching with raw query
-    const totalCount = searchGrouped.reduce((acc, g) => acc + g.items.length, 0);
-    if (totalCount === 0 && queryChinese !== rawQuery) {
-      const fallbackGrouped = await pluginRegistry.searchSources(rawQuery, sourceId, page, orderedIds);
-      if (fallbackGrouped.some((g) => g.items.length > 0)) {
-        searchGrouped = fallbackGrouped;
-      }
-    }
-
-    // Collect all items across all sources into a single array for batch translation
-    const allRawItems = searchGrouped.flatMap((g) => g.items);
-    const batchTranslatedItems = await translateNovelItems(allRawItems);
-
-    // Re-assign translated items back to their respective source groups
-    let itemMapPointer = 0;
-    const translatedGrouped = searchGrouped.map((g) => {
-      const groupCount = g.items.length;
-      const groupTranslated = batchTranslatedItems.slice(itemMapPointer, itemMapPointer + groupCount);
-      itemMapPointer += groupCount;
-      return {
-        ...g,
-        items: groupTranslated,
-      };
-    });
-
-    return NextResponse.json({
-      success: true,
-      query: rawQuery,
-      queryChinese,
-      sourceId,
-      totalResults: batchTranslatedItems.length,
-      groupedResults: translatedGrouped,
-      results: batchTranslatedItems,
-    });
+    return NextResponse.json({ success: true, groupedResults });
   } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      error: err.message || 'Failed to perform search',
-    });
+    return NextResponse.json({ success: false, error: err.message });
   }
 }

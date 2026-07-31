@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Warm Duotone Novel Console — WTR-Lab Inspired Reader',
-  description: 'Scalable Chinese web novel reader with 4-tier Cloudflare bypass, HTML Google translation, and Warm Duotone Console UI.',
+  title: 'NovelReaderAI — Chinese Web Novel Reader',
+  description: 'A sleek, multi-source Chinese web novel reader with real-time translation, bilingual reading modes, and a modern console-style interface.',
 };
 
 export default function RootLayout({

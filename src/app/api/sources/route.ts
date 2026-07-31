@@ -1,15 +1,24 @@
 import { NextResponse } from 'next/server';
-import { pluginRegistry } from '@/lib/plugins/plugin-registry';
+import { getSources } from '@/lib/novelapi-client';
+import { NovelSourceInfo } from '@/lib/types';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  // Return ALL sources (including disabled/blocked) with their enabled status
-  const sources = pluginRegistry.getAllSourcesWithStatus();
-  const counts = pluginRegistry.getSourceCounts();
-  return NextResponse.json({
-    success: true,
-    count: sources.length,
-    enabledCount: counts.enabled,
-    blockedCount: counts.blocked,
-    sources,
-  });
+  try {
+    const raw = await getSources();
+    const sources: NovelSourceInfo[] = raw.map(s => ({
+      id: s.id,
+      name: s.name,
+      baseUrl: s.baseUrl,
+      language: s.language,
+      version: '1.0.0',
+      hasSearch: s.hasSearch,
+      charset: s.charset,
+      description: `${s.name} — ${s.hasSearch ? 'Search & Catalog' : 'Catalog only'} (via NovelAPI)`,
+    }));
+    return NextResponse.json({ success: true, sources });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message });
+  }
 }
